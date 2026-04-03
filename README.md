@@ -48,34 +48,6 @@ O sistema é organizado com base em conceitos de **Programação Orientada a Obj
 
 ---
 
-## 🚀 Como Executar
-
-1. Clone o repositório:
-
-   ```bash
-   git clone <URL_DO_REPOSITORIO>
-   ```
-
-2. Acesse a pasta do projeto:
-
-   ```bash
-   cd SistemaBanco
-   ```
-
-3. Compile os arquivos:
-
-   ```bash
-   javac src/*.java -d bin
-   ```
-
-4. Execute o programa:
-
-   ```bash
-   java -cp bin Main
-   ```
-
----
-
 ## 🧠 Conceitos Aplicados
 
 * Encapsulamento
