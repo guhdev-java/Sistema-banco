@@ -1,35 +1,40 @@
+import java.math.BigDecimal;
+import java.text.NumberFormat;
+import java.util.Locale;
+
 public class ContaPoupanca extends ContaBancaria {
 
-    private double taxaJuros;                      // Taxa de juros mensal aplicada à conta poupança
+    private BigDecimal taxaJuros;                      
 
-    public ContaPoupanca(Cliente titular, double saldoInicial, double taxaJuros) {
+    public ContaPoupanca(Cliente titular, BigDecimal saldoInicial, BigDecimal taxaJuros) {
         super(titular, saldoInicial);
-        if (taxaJuros < 0) {
-            throw new IllegalArgumentException("Taxa de juros não pode ser negativa.");         // Validação para garantir que a taxa de juros fornecida seja um valor positivo, lançando uma exceção caso contrário
+        if (taxaJuros.compareTo(BigDecimal.ZERO) < 0) {
+            throw new IllegalArgumentException("Taxa de juros não pode ser negativa.");    
         }
         this.taxaJuros = taxaJuros;
     }
 
-    public ContaPoupanca(Cliente titular, double saldoInicial) {                // Construtor adicional que permite criar uma conta poupança com uma taxa de juros padrão de 5% caso o usuário não forneça uma taxa personalizada
-        this(titular, saldoInicial, 0.05);
+    public ContaPoupanca(Cliente titular, BigDecimal saldoInicial) {               
+        this(titular, saldoInicial, BigDecimal.valueOf(0.05));
     }
 
-    public double getTaxaJuros() {         
+    public BigDecimal getTaxaJuros() {         
         return taxaJuros;
     }
 
-    public void setTaxaJuros(double taxaJuros) {
-        if (taxaJuros < 0) {
-            throw new IllegalArgumentException("Taxa de juros não pode ser negativa.");         // Validação para garantir que a taxa de juros fornecida seja um valor positivo, lançando uma exceção caso contrário
+    public void setTaxaJuros(BigDecimal taxaJuros) {
+        if (taxaJuros.compareTo(BigDecimal.ZERO) < 0) {
+            throw new IllegalArgumentException("Taxa de juros não pode ser negativa.");         
         }
         this.taxaJuros = taxaJuros;
     }
 
     @Override
-    public void calcularJuros() {           // Método para calcular e aplicar os juros à conta poupança, calculando o valor dos juros com base no saldo atual e na taxa de juros, e depositando esse valor na conta
-        double ganho = getSaldo() * taxaJuros;
+    public void calcularJuros() {                               
+        BigDecimal ganho = getSaldo().multiply(taxaJuros);
         depositar(ganho);
-        System.out.println("Juros de " + (taxaJuros * 100) + "% aplicados. Valor de juros: R$ " + String.format("%.2f", ganho));
+        NumberFormat formatoMoeda = NumberFormat.getCurrencyInstance(new Locale("pt", "BR"));
+        System.out.println("Juros de " + (taxaJuros.multiply(BigDecimal.valueOf(100)).doubleValue()) + "% aplicados. Valor de juros: " + formatoMoeda.format(ganho));
     }
 
     @Override

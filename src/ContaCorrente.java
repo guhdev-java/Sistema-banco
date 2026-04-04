@@ -1,23 +1,34 @@
+import java.math.BigDecimal;
+import java.text.NumberFormat;
+import java.util.Locale;
+
 public class ContaCorrente extends ContaBancaria {
 
-    private static final double TAXA_MANTENCAO = 10.0;         // Valor fixo da taxa operacional de manutenção para contas correntes
+    private static final BigDecimal TAXA_MANTENCAO = BigDecimal.valueOf(10.0);         
+    private boolean taxaAplicada = false; // Flag para aplicar a taxa apenas uma vez por sessão
 
-    public ContaCorrente(Cliente titular, double saldoInicial) {
+    public ContaCorrente(Cliente titular, BigDecimal saldoInicial) {
         super(titular, saldoInicial);
     }
 
     @Override
-    public void calcularJuros() {                        // Método para calcular juros, que no caso da conta corrente não há aplicação de juros, apenas uma mensagem informativa é exibida
+    public void calcularJuros() {                        
         System.out.println("Conta Corrente não tem juros.");
     }
 
     @Override
-    public void calcularTaxa() {            // Método para calcular e aplicar a taxa operacional de manutenção, verificando se o saldo é suficiente para cobrir a taxa antes de aplicá-la, e informando o usuário sobre a aplicação da taxa ou a insuficiência de saldo
-        if (getSaldo() >= TAXA_MANTENCAO) { 
-            super.sacar(TAXA_MANTENCAO);
-            System.out.println("Taxa operacional de R$ " + TAXA_MANTENCAO + " aplicada.");
+    public void calcularTaxa() {      
+        if (!taxaAplicada) {
+            if (getSaldo().compareTo(TAXA_MANTENCAO) >= 0) { 
+                super.sacar(TAXA_MANTENCAO);
+                NumberFormat formatoMoeda = NumberFormat.getCurrencyInstance(new Locale("pt", "BR"));
+                System.out.println("Taxa operacional de " + formatoMoeda.format(TAXA_MANTENCAO) + " aplicada.");
+                taxaAplicada = true;
+            } else {
+                System.out.println("Saldo insuficiente para aplicar taxa de manutenção.");
+            }
         } else {
-            System.out.println("Saldo insuficiente para aplicar taxa de manutenção.");
+            System.out.println("Taxa operacional já aplicada nesta sessão.");
         }
     }
 }

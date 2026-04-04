@@ -1,9 +1,10 @@
+import java.math.BigDecimal;
 import java.util.Scanner;
 
 public class Main {
 
     private static int lerInt(Scanner scan, String prompt) {
-        while (true) {                                                                      // Loop para garantir que o usuário digite um número inteiro válido
+        while (true) {                                                                      
             System.out.print(prompt);
             try {
                 int valor = scan.nextInt();
@@ -11,7 +12,7 @@ public class Main {
                 return valor;
             } catch (java.util.InputMismatchException e) {
                 System.out.println("Entrada inválida. Digite um número inteiro.");
-                scan.nextLine();                                                            // Limpa o buffer do scanner para evitar loop infinito
+                scan.nextLine();                                                            
             }
         }
     }
@@ -33,13 +34,13 @@ public class Main {
     public static void main(String[] args) {
         Scanner scan = new Scanner(System.in);
 
-        boolean sairPrograma = false;                                                           // Variável para controlar o loop principal do programa, permitindo que o usuário faça login com diferentes contas sem reiniciar o programa
+        boolean sairPrograma = false;                                                           
 
         while (!sairPrograma) {
             System.out.print("Digite seu nome para login: ");
             String nomeLogin = scan.nextLine().trim();
 
-            Cliente cliente = null;                                                             // Loop para garantir que o usuário digite um CPF válido, criando o objeto Cliente apenas quando um CPF correto for fornecido
+            Cliente cliente = null;                                                             
             while (cliente == null) {
                 System.out.print("Digite seu CPF para login (11 dígitos): ");
                 String cpfLogin = scan.nextLine().trim();
@@ -50,23 +51,23 @@ public class Main {
                 }
             }
 
-            ContaPoupanca contaPoupanca = new ContaPoupanca(cliente, 1000.00, 0.05);                        // Criação de uma conta poupança com saldo inicial e taxa de juros personalizada para o cliente logado
-            ContaCorrente contaCorrente = new ContaCorrente(cliente, 500.00);                                         // Criação de uma conta corrente com saldo inicial para o cliente logado
+            ContaPoupanca contaPoupanca = new ContaPoupanca(cliente, BigDecimal.valueOf(1000.00), BigDecimal.valueOf(0.05));                        
+            ContaCorrente contaCorrente = new ContaCorrente(cliente, BigDecimal.valueOf(500.00));                                         
             ContaBancaria contaSelecionada = null;
             boolean logado = true;
 
             System.out.println("Login realizado com sucesso! Bem-vindo, " + cliente.getNome() + "!");
 
-            while (logado) {                                                                                        // Loop para exibir o menu de operações bancárias, permitindo que o usuário escolha entre as opções disponíveis e interaja com suas contas
+            while (logado) {                                                                                        
                 if (contaSelecionada == null) {
                     System.out.println("\nEscolha o tipo de conta: " +
                             "\n1 - Conta Poupança" +
                             "\n2 - Conta Corrente");
                     int opcaoConta = lerInt(scan, "Opção de conta: ");
 
-                    if (opcaoConta == 1) {                                                                  // Seleção da conta poupança se o usuário escolher a opção 1
+                    if (opcaoConta == 1) {                                                                  
                         contaSelecionada = contaPoupanca;
-                    } else if (opcaoConta == 2) {                                                           // Seleção da conta corrente se o usuário escolher a opção 2                                           
+                    } else if (opcaoConta == 2) {                                                                                                      
                         contaSelecionada = contaCorrente;
                     } else {
                         System.out.println("Opção inválida. Tente novamente.");
@@ -79,7 +80,7 @@ public class Main {
                     contaSelecionada.consultarSaldo();
                 }
 
-                System.out.println("\nEscolha entre as opções: " +                                          // Menu de operações bancárias, permitindo que o usuário escolha entre sacar, depositar, transferir, consultar saldo, trocar de conta ou fazer logout
+                System.out.println("\nEscolha entre as opções: " +                                          
                         "\n1 - Sacar" +
                         "\n2 - Depositar" +
                         "\n3 - Transferência entre contas" +
@@ -89,21 +90,21 @@ public class Main {
                 int opcao = lerInt(scan, "Opção do menu: ");
 
                 try {
-                    switch (opcao) {                                // Estrutura switch para executar a operação escolhida pelo usuário, com tratamento de exceções para garantir que erros sejam informados de forma clara e o programa continue funcionando sem travar
+                    switch (opcao) {                                
                         case 1 -> {
                             double valorSaque = lerDouble(scan, "Digite o valor para saque: ");
-                            contaSelecionada.sacar(valorSaque);
+                            contaSelecionada.sacar(BigDecimal.valueOf(valorSaque));
                             contaSelecionada.consultarSaldo();
                         }
                         case 2 -> {
                             double valorDeposito = lerDouble(scan, "Digite o valor para depósito: ");
-                            contaSelecionada.depositar(valorDeposito);
+                            contaSelecionada.depositar(BigDecimal.valueOf(valorDeposito));
                             contaSelecionada.consultarSaldo();
                         }
                         case 3 -> {
                             double valorTransferencia = lerDouble(scan, "Digite o valor para transferência: ");
                             ContaBancaria destino = contaSelecionada == contaPoupanca ? contaCorrente : contaPoupanca;
-                            destino.depositar(valorTransferencia, contaSelecionada);
+                            destino.depositar(BigDecimal.valueOf(valorTransferencia), contaSelecionada);
                             System.out.println("Transferência concluída.");
                             System.out.println("Saldo conta origem:");
                             contaSelecionada.consultarSaldo();
@@ -126,7 +127,7 @@ public class Main {
                 }
             }
 
-            System.out.println("\nDeseja iniciar sessão com outro usuário? (S/N)");                 // Pergunta ao usuário se deseja fazer login com outro usuário, permitindo que o programa continue rodando para múltiplos logins sem precisar ser reiniciado
+            System.out.println("\nDeseja iniciar sessão com outro usuário? (S/N)");                 
             String resposta = scan.nextLine().trim().toUpperCase();
             if (!resposta.equals("S") && !resposta.equals("SIM")) {
                 sairPrograma = true;
@@ -134,7 +135,7 @@ public class Main {
             }
         }
 
-        scan.close();                                   // Fechamento do scanner para liberar recursos, garantindo que o programa seja encerrado de forma limpa e sem vazamentos de memória
+        scan.close();                                   
     }
 }
  
