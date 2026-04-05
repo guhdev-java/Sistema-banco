@@ -15,7 +15,7 @@ public void setCpf(String cpf) {
     if(cpf.length() == 11) {
         this.cpf = cpf;
     } else {
-        throw new IllegalArgumentException("CPF inválido.");
+        throw new IllegalArgumentException("CPF inválido."); 
     }
 }
 public String getCpf() {            
