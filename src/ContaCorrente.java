@@ -5,7 +5,7 @@ import java.util.Locale;
 public class ContaCorrente extends ContaBancaria {
 
     private static final BigDecimal TAXA_MANTENCAO = BigDecimal.valueOf(10.0);         
-    private boolean taxaAplicada = false; // Flag para aplicar a taxa apenas uma vez por sessão
+    private boolean taxaAplicada = false; 
 
     public ContaCorrente(Cliente titular, BigDecimal saldoInicial) {
         super(titular, saldoInicial);
@@ -15,7 +15,7 @@ public class ContaCorrente extends ContaBancaria {
     public void calcularJuros() {                        
         System.out.println("Conta Corrente não tem juros.");
     }
-
+    
     @Override
     public void calcularTaxa() {      
         if (!taxaAplicada) {
@@ -30,5 +30,11 @@ public class ContaCorrente extends ContaBancaria {
         } else {
             System.out.println("Taxa operacional já aplicada nesta sessão.");
         }
+    }
+    @Override
+    public void sacar(BigDecimal valor) {
+        BigDecimal taxa = BigDecimal.valueOf(2.0);
+        System.out.println("Taxa de saque de " + NumberFormat.getCurrencyInstance(new Locale("pt", "BR")).format(taxa) + " será aplicada.");
+        super.sacar(valor.add(taxa));
     }
 }
