@@ -3,6 +3,7 @@ import java.text.NumberFormat;
 import java.util.Locale;
 
 public class ContaCorrente extends ContaBancaria {
+    private static final Locale LOCALE_BR = new Locale.Builder().setLanguage("pt").setRegion("BR").build();
 
     private static final BigDecimal TAXA_MANTENCAO = BigDecimal.valueOf(10.0);         
     private boolean taxaAplicada = false; 
@@ -21,7 +22,7 @@ public class ContaCorrente extends ContaBancaria {
         if (!taxaAplicada) {
             if (getSaldo().compareTo(TAXA_MANTENCAO) >= 0) { 
                 super.sacar(TAXA_MANTENCAO);
-                NumberFormat formatoMoeda = NumberFormat.getCurrencyInstance(new Locale("pt", "BR"));
+                NumberFormat formatoMoeda = NumberFormat.getCurrencyInstance(LOCALE_BR);
                 System.out.println("Taxa operacional de " + formatoMoeda.format(TAXA_MANTENCAO) + " aplicada.");
                 taxaAplicada = true;
             } else {
@@ -34,7 +35,7 @@ public class ContaCorrente extends ContaBancaria {
     @Override
     public void sacar(BigDecimal valor) {
         BigDecimal taxa = BigDecimal.valueOf(2.0);
-        System.out.println("Taxa de saque de " + NumberFormat.getCurrencyInstance(new Locale("pt", "BR")).format(taxa) + " será aplicada.");
+        System.out.println("Taxa de saque de " + NumberFormat.getCurrencyInstance(LOCALE_BR).format(taxa) + " será aplicada.");
         super.sacar(valor.add(taxa));
     }
 }

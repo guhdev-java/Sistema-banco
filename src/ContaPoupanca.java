@@ -3,6 +3,7 @@ import java.text.NumberFormat;
 import java.util.Locale;
 
 public class ContaPoupanca extends ContaBancaria {
+    private static final Locale LOCALE_BR = new Locale.Builder().setLanguage("pt").setRegion("BR").build();
 
     private BigDecimal taxaJuros;                      
 
@@ -33,7 +34,7 @@ public class ContaPoupanca extends ContaBancaria {
     public void calcularJuros() {                               
         BigDecimal ganho = getSaldo().multiply(taxaJuros);
         depositar(ganho);
-        NumberFormat formatoMoeda = NumberFormat.getCurrencyInstance(new Locale("pt", "BR"));
+        NumberFormat formatoMoeda = NumberFormat.getCurrencyInstance(LOCALE_BR);
         System.out.println("Juros de " + (taxaJuros.multiply(BigDecimal.valueOf(100)).doubleValue()) + "% aplicados. Valor de juros: " + formatoMoeda.format(ganho));
     }
 

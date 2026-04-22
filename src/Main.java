@@ -1,5 +1,6 @@
 import java.math.BigDecimal;
 import java.util.Scanner;
+import javax.swing.SwingUtilities;
 
 public class Main {
 
@@ -32,6 +33,15 @@ public class Main {
     }
 
     public static void main(String[] args) {
+        if (args.length == 0 || !"--cli".equalsIgnoreCase(args[0])) {
+            SwingUtilities.invokeLater(() -> new BancoUI().show());
+            return;
+        }
+
+        executarModoConsole();
+    }
+
+    private static void executarModoConsole() {
         Scanner scan = new Scanner(System.in);
 
         boolean sairPrograma = false;                                                           

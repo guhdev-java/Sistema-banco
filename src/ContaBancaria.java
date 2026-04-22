@@ -3,6 +3,7 @@ import java.text.NumberFormat;
 import java.util.Locale;
 
 public abstract class ContaBancaria implements TaxaOperacional {     
+    private static final Locale LOCALE_BR = new Locale.Builder().setLanguage("pt").setRegion("BR").build();
     private BigDecimal saldo;
     private Cliente titular;
 
@@ -33,7 +34,7 @@ public abstract class ContaBancaria implements TaxaOperacional {
             throw new IllegalArgumentException("Saldo insuficiente para saque.");
         }
         saldo = saldo.subtract(valor);
-        NumberFormat formatoMoeda = NumberFormat.getCurrencyInstance(new Locale("pt", "BR"));
+        NumberFormat formatoMoeda = NumberFormat.getCurrencyInstance(LOCALE_BR);
         System.out.println("Saque de " + formatoMoeda.format(valor) + " realizado com sucesso.");
     }
 
@@ -42,7 +43,7 @@ public abstract class ContaBancaria implements TaxaOperacional {
             throw new IllegalArgumentException("Valor de depósito deve ser maior que 0.");
         }
         saldo = saldo.add(valor);
-        NumberFormat formatoMoeda = NumberFormat.getCurrencyInstance(new Locale("pt", "BR"));
+        NumberFormat formatoMoeda = NumberFormat.getCurrencyInstance(LOCALE_BR);
         System.out.println("Depósito de " + formatoMoeda.format(valor) + " realizado com sucesso.");
     }
 
@@ -56,18 +57,18 @@ public abstract class ContaBancaria implements TaxaOperacional {
 
         contaOrigem.sacar(valor);       
         this.saldo = this.saldo.add(valor);
-        NumberFormat formatoMoeda = NumberFormat.getCurrencyInstance(new Locale("pt", "BR"));
+        NumberFormat formatoMoeda = NumberFormat.getCurrencyInstance(LOCALE_BR);
         System.out.println("Transferência de " + formatoMoeda.format(valor) + " recebida de " + contaOrigem.getTitular().getNome() + ".");
     }
 
     public void consultarSaldo() {       
-        NumberFormat formatoMoeda = NumberFormat.getCurrencyInstance(new Locale("pt", "BR"));
+        NumberFormat formatoMoeda = NumberFormat.getCurrencyInstance(LOCALE_BR);
         System.out.println("Titular: " + titular.getNome() + " - Saldo atual: " + formatoMoeda.format(saldo));
     }
 
     @Override
     public String toString() {       
-        NumberFormat formatoMoeda = NumberFormat.getCurrencyInstance(new Locale("pt", "BR"));
+        NumberFormat formatoMoeda = NumberFormat.getCurrencyInstance(LOCALE_BR);
         return "ContaBancaria{" +
                 "titular=" + titular.getNome() +
                 ", cpf=" + titular.getCpfFormatado() +
