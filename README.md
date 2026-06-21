@@ -95,26 +95,6 @@ Abra o projeto em sua IDE favorita (**IntelliJ IDEA**, **Eclipse** ou **NetBeans
 
 ---
 
-## 📸 Imagens do Sistema
-
-### Tela de Login
-
-Adicione aqui uma captura da tela.
-
-```md
-<img width="1014" height="659" alt="Captura_de_tela_20260621_125941" src="https://github.com/user-attachments/assets/dec41ab1-429d-4903-8369-1e7a693b28f2" />
-
-```
-
-### Tela Principal
-
-```md
-<img width="989" height="641" alt="Captura_de_tela_20260621_130034" src="https://github.com/user-attachments/assets/a8bcc48c-923e-44c7-9ca2-e5a700ac32f3" />
-
-```
-
----
-
 ## 🎯 Objetivos do Projeto
 
 - Praticar Java na prática.
