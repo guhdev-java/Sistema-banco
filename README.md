@@ -1,62 +1,150 @@
-# 🏦 Sistema Bancário em Java
+# 💳 Sistema Bancário em Java
 
-Este projeto é um **sistema bancário simples desenvolvido em Java**, com o objetivo de simular operações básicas de uma instituição financeira. Ele permite a criação e gerenciamento de contas, além da realização de operações como depósitos, saques e aplicação de taxas.
+<p align="center">
+  <img src="https://img.shields.io/badge/Java-17+-orange?style=for-the-badge&logo=openjdk">
+  <img src="https://img.shields.io/badge/Status-Em%20Desenvolvimento-success?style=for-the-badge">
+  <img src="https://img.shields.io/github/stars/guhdev-java/Sistema-banco?style=for-the-badge">
+</p>
 
----
+## 📖 Sobre o Projeto
 
-## 📌 Funcionalidades
+O **Sistema Bancário** é uma aplicação desenvolvida em Java com o objetivo de simular operações bancárias reais, aplicando conceitos de **Programação Orientada a Objetos (POO)** e boas práticas de desenvolvimento.
 
-* 💰 **Depósito**
-  Permite adicionar saldo à conta.
+O projeto iniciou como uma aplicação de terminal e evoluiu para uma aplicação com interface gráfica, permitindo ao usuário realizar diversas operações bancárias de forma simples e intuitiva.
 
-* 💸 **Saque**
-  Realiza retiradas de saldo, respeitando regras da conta.
-
-* 📈 **Aplicação de Taxas/Juros**
-  Cálculo de taxas operacionais e juros, dependendo do tipo de conta.
-
-* 🏦 **Tipos de Conta**
-
-  * **Conta Corrente**
-
-    * Pode ter taxas operacionais
-    * Foco em movimentação diária
-  * **Conta Poupança**
-
-    * Aplica rendimento (juros)
-    * Ideal para guardar dinheiro
+Este projeto faz parte do meu processo de aprendizado e evolução como desenvolvedor Java.
 
 ---
 
-## 🧱 Estrutura do Projeto
+## ✨ Funcionalidades
 
-O sistema é organizado com base em conceitos de **Programação Orientada a Objetos (POO)**:
-
-* `ContaBancaria` (classe base)
-* `ContaCorrente`
-* `ContaPoupanca`
-* `Cliente`
-* `TaxaOperacional`
-* `Main` (classe principal para execução)
+- ✅ Cadastro de clientes
+- ✅ Sistema de autenticação/login
+- ✅ Depósito
+- ✅ Saque
+- ✅ Transferência entre contas
+- ✅ Consulta de saldo
+- ✅ Histórico de transações
+- ✅ Aplicação de taxas operacionais
+- ✅ Interface gráfica desenvolvida com Swing
+- ✅ Validação de operações bancárias
 
 ---
 
-## ⚙️ Tecnologias Utilizadas
+## 🛠️ Tecnologias Utilizadas
 
-* ☕ Java
-* Paradigma de Programação Orientada a Objetos (POO)
+- **Java**
+- **Java Swing**
+- **POO (Programação Orientada a Objetos)**
+- **BigDecimal**
+- **Git**
+- **GitHub**
 
 ---
 
 ## 🧠 Conceitos Aplicados
 
-* Encapsulamento
-* Herança
-* Polimorfismo
-* Abstração
+Durante o desenvolvimento deste projeto foram aplicados diversos conceitos importantes da linguagem Java:
+
+- Encapsulamento
+- Herança
+- Polimorfismo
+- Abstração
+- Classes abstratas
+- Interfaces
+- Tratamento de exceções
+- Collections Framework
+- Organização e reutilização de código
 
 ---
 
-## 📌 Objetivo do Projeto
+## 📂 Estrutura do Projeto
 
-Este projeto foi desenvolvido com fins educacionais, com o objetivo de praticar conceitos fundamentais de Java e simular o funcionamento básico de um sistema bancário.
+Atualmente, o projeto está organizado dentro da pasta `src`, contendo todas as classes responsáveis pela lógica de negócio e interface gráfica.
+
+```bash
+src/
+├── BancoUI.java
+├── Cliente.java
+├── ContaBancaria.java
+├── ContaCorrente.java
+├── ContaPoupanca.java
+├── Main.java
+└── TaxaOperacional.java
+```
+
+> O projeto continua em evolução e futuras versões poderão contar com uma arquitetura mais modular.
+
+---
+
+## 🚀 Como Executar
+
+### Pré-requisitos
+
+- Java 17 ou superior.
+
+### Clonando o projeto
+
+```bash
+git clone https://github.com/guhdev-java/Sistema-banco.git
+```
+
+### Executando
+
+Abra o projeto em sua IDE favorita (**IntelliJ IDEA**, **Eclipse** ou **NetBeans**) e execute a classe principal.
+
+---
+
+## 📸 Imagens do Sistema
+
+### Tela de Login
+
+Adicione aqui uma captura da tela.
+
+```md
+<img width="1014" height="659" alt="Captura_de_tela_20260621_125941" src="https://github.com/user-attachments/assets/dec41ab1-429d-4903-8369-1e7a693b28f2" />
+
+```
+
+### Tela Principal
+
+```md
+<img width="989" height="641" alt="Captura_de_tela_20260621_130034" src="https://github.com/user-attachments/assets/a8bcc48c-923e-44c7-9ca2-e5a700ac32f3" />
+
+```
+
+---
+
+## 🎯 Objetivos do Projeto
+
+- Praticar Java na prática.
+- Consolidar conhecimentos em POO.
+- Simular regras de negócio reais.
+- Evoluir continuamente através de novas funcionalidades.
+
+---
+
+## 🔮 Melhorias Futuras
+
+- [ ] Persistência de dados em banco de dados
+- [ ] Criptografia de senhas
+- [ ] Geração de extratos em PDF
+- [ ] Testes automatizados
+- [ ] Refatoração para arquitetura MVC
+- [ ] API REST
+
+---
+
+## 👨‍💻 Autor
+
+**Gustavo Maquias**
+
+📧 E-mail: guuuhh666@gmail.com
+
+🐙 GitHub: https://github.com/guhdev-java
+
+💼 LinkedIn: https://www.linkedin.com/in/gustavo-maquias-975a27321
+
+---
+
+⭐ Se este projeto foi interessante para você, considere deixar uma estrela no repositório.
