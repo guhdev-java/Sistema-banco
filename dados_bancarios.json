@@ -1,0 +1,49 @@
+{
+  "clientes": [
+    {
+      "id": "4018dbe5-de2d-4711-879b-78d7df6d8575",
+      "nome": "Teste",
+      "cpf": "52998224725",
+      "senhaHash": "$2a$10$zAS3DuD/84t2Lhv1IYYTQ.RwIq8z1hFa4H/Iz/wzDJJu0bgwRJ.H2"
+    },
+    {
+      "id": "942598fa-c288-4b69-8d41-b9c402dadcb6",
+      "nome": "gustavo",
+      "cpf": "12345678909",
+      "senhaHash": "$2a$10$hfcHcjZ689TnrjoSuf4Os.ovJlumJfrewHctfer2p5pu/jlgh4/yG"
+    }
+  ],
+  "contas": [
+    {
+      "tipo": "POUPANCA",
+      "numeroConta": "0001-1",
+      "agencia": "0001",
+      "saldo": 1000.00,
+      "titularId": "4018dbe5-de2d-4711-879b-78d7df6d8575",
+      "taxaJuros": 0.05
+    },
+    {
+      "tipo": "CORRENTE",
+      "numeroConta": "0002-2",
+      "agencia": "0001",
+      "saldo": 500.00,
+      "titularId": "4018dbe5-de2d-4711-879b-78d7df6d8575"
+    },
+    {
+      "tipo": "POUPANCA",
+      "numeroConta": "0003-1",
+      "agencia": "0001",
+      "saldo": 1550.00,
+      "titularId": "942598fa-c288-4b69-8d41-b9c402dadcb6",
+      "taxaJuros": 0.05
+    },
+    {
+      "tipo": "CORRENTE",
+      "numeroConta": "0004-2",
+      "agencia": "0001",
+      "saldo": 188.00,
+      "titularId": "942598fa-c288-4b69-8d41-b9c402dadcb6"
+    }
+  ],
+  "proximoNumeroConta": 5
+}

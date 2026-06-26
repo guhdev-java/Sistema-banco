@@ -1,3 +1,11 @@
+package br.com.banco.ui;
+
+import br.com.banco.model.Cliente;
+import br.com.banco.model.ContaBancaria;
+import br.com.banco.model.ContaCorrente;
+import br.com.banco.model.ContaPoupanca;
+import br.com.banco.service.BancoService;
+import br.com.banco.util.FormatadorMoeda;
 import java.awt.BasicStroke;
 import java.awt.BorderLayout;
 import java.awt.CardLayout;
@@ -14,14 +22,14 @@ import java.awt.GridLayout;
 import java.awt.Insets;
 import java.awt.RenderingHints;
 import java.math.BigDecimal;
-import java.text.NumberFormat;
-import java.util.Locale;
+import java.math.RoundingMode;
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
+import javax.swing.JPasswordField;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
@@ -36,9 +44,8 @@ public class BancoUI {
     private static final Color BG_BOTTOM = new Color(24, 76, 102);
     private static final Color CARD_BG = new Color(245, 249, 252);
     private static final Color PRIMARY = new Color(8, 104, 129);
-    private static final Locale LOCALE_BR = new Locale.Builder().setLanguage("pt").setRegion("BR").build();
 
-    private final NumberFormat moeda = NumberFormat.getCurrencyInstance(LOCALE_BR);
+    private final BancoService service = new BancoService();
 
     private JFrame frame;
     private CardLayout cardLayout;
@@ -89,7 +96,7 @@ public class BancoUI {
         panel.setLayout(new GridBagLayout());
 
         JPanel card = new JPanel(new GridBagLayout());
-        card.setPreferredSize(new Dimension(430, 310));
+        card.setPreferredSize(new Dimension(430, 380));
         card.setBackground(new Color(255, 255, 255, 230));
         card.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(new Color(255, 255, 255, 180), 1),
@@ -121,15 +128,20 @@ public class BancoUI {
 
         gbc.gridy++;
         JTextField cpfField = new JTextField();
-        cpfField.setBorder(BorderFactory.createTitledBorder("CPF (11 digitos)"));
+        cpfField.setBorder(BorderFactory.createTitledBorder("CPF"));
         card.add(cpfField, gbc);
+
+        gbc.gridy++;
+        JPasswordField senhaField = new JPasswordField();
+        senhaField.setBorder(BorderFactory.createTitledBorder("Senha"));
+        card.add(senhaField, gbc);
 
         gbc.gridy++;
         JButton entrarBtn = criarBotao("Entrar");
         card.add(entrarBtn, gbc);
 
         gbc.gridy++;
-        JLabel dica = new JLabel("Dica: use apenas numeros no CPF");
+        JLabel dica = new JLabel("Novo? Basta informar seus dados para criar conta");
         dica.setHorizontalAlignment(SwingConstants.CENTER);
         dica.setForeground(new Color(88, 106, 121));
         card.add(dica, gbc);
@@ -137,14 +149,19 @@ public class BancoUI {
         entrarBtn.addActionListener(e -> {
             String nome = nomeField.getText().trim();
             String cpf = cpfField.getText().trim();
+            String senha = new String(senhaField.getPassword()).trim();
 
             if (nome.isEmpty()) {
                 mostrarErro("Informe o nome para continuar.");
                 return;
             }
+            if (senha.isEmpty()) {
+                mostrarErro("Informe a senha para continuar.");
+                return;
+            }
 
             try {
-                iniciarSessao(nome, cpf);
+                iniciarSessao(nome, cpf, senha);
                 cardLayout.show(root, "painel");
                 animarToast("Login realizado com sucesso.", new Color(28, 132, 82));
             } catch (IllegalArgumentException ex) {
@@ -187,7 +204,7 @@ public class BancoUI {
         saldoBox.setLayout(new GridLayout(2, 1));
         JLabel saldoTitulo = new JLabel("Saldo da conta selecionada");
         saldoTitulo.setForeground(new Color(62, 90, 108));
-        saldoPrincipalLabel = new JLabel(moeda.format(BigDecimal.ZERO));
+        saldoPrincipalLabel = new JLabel(FormatadorMoeda.formatar(BigDecimal.ZERO));
         saldoPrincipalLabel.setFont(new Font("Georgia", Font.BOLD, 28));
         saldoPrincipalLabel.setForeground(new Color(16, 70, 97));
         saldoBox.add(saldoTitulo);
@@ -197,6 +214,7 @@ public class BancoUI {
         topoDireito.setOpaque(false);
         JButton logoutBtn = criarBotao("Logout");
         logoutBtn.addActionListener(e -> {
+            service.salvarDados();
             limparSessao();
             cardLayout.show(root, "login");
             animarToast("Sessao encerrada.", new Color(138, 89, 29));
@@ -316,7 +334,7 @@ public class BancoUI {
         JLabel descricaoLabel = new JLabel(descricao);
         descricaoLabel.setForeground(new Color(76, 98, 114));
 
-        JLabel saldoLabel = new JLabel(moeda.format(BigDecimal.ZERO));
+        JLabel saldoLabel = new JLabel(FormatadorMoeda.formatar(BigDecimal.ZERO));
         saldoLabel.setFont(new Font("SansSerif", Font.BOLD, 21));
         saldoLabel.setForeground(new Color(17, 88, 118));
 
@@ -369,10 +387,10 @@ public class BancoUI {
         return botao;
     }
 
-    private void iniciarSessao(String nome, String cpf) {
-        cliente = new Cliente(nome, cpf);
-        contaPoupanca = new ContaPoupanca(cliente, BigDecimal.valueOf(1000.0), BigDecimal.valueOf(0.05));
-        contaCorrente = new ContaCorrente(cliente, BigDecimal.valueOf(500.0));
+    private void iniciarSessao(String nome, String cpf, String senha) {
+        cliente = service.autenticar(nome, cpf, senha);
+        contaPoupanca = service.getContaPoupanca(cliente);
+        contaCorrente = service.getContaCorrente(cliente);
         contaSelecionada = null;
         houveSelecaoPoupanca = false;
         houveSelecaoCorrente = false;
@@ -389,7 +407,7 @@ public class BancoUI {
     private void selecionarConta(String tipo) {
         if ("poupanca".equals(tipo)) {
             contaSelecionada = contaPoupanca;
-            badgeContaAtiva.setText("Conta ativa: Poupanca");
+            badgeContaAtiva.setText("Conta ativa: Poupanca (" + contaPoupanca.getNumeroConta() + ")");
             if (!houveSelecaoPoupanca) {
                 contaPoupanca.calcularJuros();
                 contaPoupanca.calcularTaxa();
@@ -400,7 +418,7 @@ public class BancoUI {
             }
         } else {
             contaSelecionada = contaCorrente;
-            badgeContaAtiva.setText("Conta ativa: Corrente");
+            badgeContaAtiva.setText("Conta ativa: Corrente (" + contaCorrente.getNumeroConta() + ")");
             if (!houveSelecaoCorrente) {
                 contaCorrente.calcularJuros();
                 contaCorrente.calcularTaxa();
@@ -426,29 +444,30 @@ public class BancoUI {
                 case "deposito" -> {
                     BigDecimal valor = lerValor();
                     contaSelecionada.depositar(valor);
-                    registrarHistorico("Deposito de " + moeda.format(valor) + " realizado.");
+                    registrarHistorico("Deposito de " + FormatadorMoeda.formatar(valor) + " realizado.");
                     animarToast("Deposito realizado.", new Color(28, 132, 82));
+                    service.salvarDados();
                 }
                 case "saque" -> {
                     BigDecimal valor = lerValor();
                     contaSelecionada.sacar(valor);
-                    registrarHistorico("Saque solicitado de " + moeda.format(valor) + ".");
+                    registrarHistorico("Saque solicitado de " + FormatadorMoeda.formatar(valor) + ".");
                     animarToast("Saque realizado.", new Color(178, 95, 31));
+                    service.salvarDados();
                 }
                 case "transferencia" -> {
                     BigDecimal valor = lerValor();
                     ContaBancaria destino = contaSelecionada == contaPoupanca ? contaCorrente : contaPoupanca;
-                    destino.depositar(valor, contaSelecionada);
-                    registrarHistorico("Transferencia de " + moeda.format(valor) + " para " + nomeConta(destino) + ".");
+                    contaSelecionada.transferir(valor, destino);
+                    registrarHistorico("Transferencia de " + FormatadorMoeda.formatar(valor) + " para " + nomeConta(destino) + ".");
                     animarToast("Transferencia concluida.", new Color(32, 115, 129));
+                    service.salvarDados();
                 }
                 case "saldo" -> {
-                    registrarHistorico("Saldo atual de " + nomeConta(contaSelecionada) + ": " + moeda.format(contaSelecionada.getSaldo()) + ".");
+                    registrarHistorico("Saldo atual de " + nomeConta(contaSelecionada) + ": " + FormatadorMoeda.formatar(contaSelecionada.getSaldo()) + ".");
                     animarToast("Saldo atualizado.", new Color(19, 101, 136));
                 }
-                default -> {
-                    return;
-                }
+                default -> {}
             }
 
             atualizarSaldos(false);
@@ -480,12 +499,12 @@ public class BancoUI {
             return;
         }
 
-        saldoPoupancaLabel.setText(moeda.format(contaPoupanca.getSaldo()));
-        saldoCorrenteLabel.setText(moeda.format(contaCorrente.getSaldo()));
+        saldoPoupancaLabel.setText(FormatadorMoeda.formatar(contaPoupanca.getSaldo()));
+        saldoCorrenteLabel.setText(FormatadorMoeda.formatar(contaCorrente.getSaldo()));
 
         BigDecimal alvo = contaSelecionada != null ? contaSelecionada.getSaldo() : BigDecimal.ZERO;
         if (semAnimacao) {
-            saldoPrincipalLabel.setText(moeda.format(alvo));
+            saldoPrincipalLabel.setText(FormatadorMoeda.formatar(alvo));
             saldoExibido = alvo;
         } else {
             animarSaldo(alvo);
@@ -495,6 +514,11 @@ public class BancoUI {
     private void animarSaldo(BigDecimal alvo) {
         final double inicio = saldoExibido.doubleValue();
         final double fim = alvo.doubleValue();
+        if (Math.abs(inicio - fim) < 0.01) {
+            saldoPrincipalLabel.setText(FormatadorMoeda.formatar(alvo));
+            saldoExibido = alvo;
+            return;
+        }
         final int passos = 24;
         final int[] indice = {0};
 
@@ -504,10 +528,10 @@ public class BancoUI {
             double t = indice[0] / (double) passos;
             double eased = 1 - Math.pow(1 - t, 3);
             double valorAnimado = inicio + (fim - inicio) * eased;
-            saldoPrincipalLabel.setText(moeda.format(valorAnimado));
+            saldoPrincipalLabel.setText(FormatadorMoeda.formatar(BigDecimal.valueOf(valorAnimado).setScale(2, RoundingMode.HALF_EVEN)));
 
             if (indice[0] >= passos) {
-                saldoPrincipalLabel.setText(moeda.format(alvo));
+                saldoPrincipalLabel.setText(FormatadorMoeda.formatar(alvo));
                 saldoExibido = alvo;
                 timer.stop();
             }
@@ -534,7 +558,7 @@ public class BancoUI {
             historicoArea.setText("");
         }
         if (saldoPrincipalLabel != null) {
-            saldoPrincipalLabel.setText(moeda.format(BigDecimal.ZERO));
+            saldoPrincipalLabel.setText(FormatadorMoeda.formatar(BigDecimal.ZERO));
         }
         saldoExibido = BigDecimal.ZERO;
         if (badgeContaAtiva != null) {
@@ -596,9 +620,7 @@ public class BancoUI {
     private void configurarLookAndFeel() {
         try {
             UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
-        } catch (Exception ignored) {
-            // Mantem o padrao se o look and feel do sistema nao estiver disponivel.
-        }
+        } catch (Exception ignored) {}
     }
 
     private static class GradientPanel extends JPanel {
