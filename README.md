@@ -3,7 +3,6 @@
 <p align="center">
   <img src="https://img.shields.io/badge/Java-17+-orange?style=for-the-badge&logo=openjdk">
   <img src="https://img.shields.io/badge/Status-Em%20Desenvolvimento-success?style=for-the-badge">
-  <img src="https://img.shields.io/github/stars/guhdev-java/Sistema-banco?style=for-the-badge">
 </p>
 
 ## 📖 Sobre o Projeto
