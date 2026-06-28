@@ -10,9 +10,12 @@ import java.awt.BasicStroke;
 import java.awt.BorderLayout;
 import java.awt.CardLayout;
 import java.awt.Color;
+import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
+import java.awt.FontFormatException;
+import java.awt.FontMetrics;
 import java.awt.GradientPaint;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
@@ -20,14 +23,22 @@ import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.GridLayout;
 import java.awt.Insets;
+import java.awt.Point;
 import java.awt.RenderingHints;
+import java.awt.event.FocusAdapter;
+import java.awt.event.FocusEvent;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.io.IOException;
+import java.io.InputStream;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.Random;
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
+import javax.swing.JComponent;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
-import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JPasswordField;
 import javax.swing.JScrollPane;
@@ -37,19 +48,31 @@ import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
 import javax.swing.Timer;
 import javax.swing.UIManager;
+import javax.swing.plaf.basic.BasicScrollBarUI;
 
 public class BancoUI {
 
-    private static final Color BG_TOP = new Color(10, 37, 64);
-    private static final Color BG_BOTTOM = new Color(24, 76, 102);
-    private static final Color CARD_BG = new Color(245, 249, 252);
-    private static final Color PRIMARY = new Color(8, 104, 129);
+    private static final Color PURPLE_DEEP = new Color(10, 4, 22);
+    private static final Color PURPLE_MID = new Color(26, 10, 48);
+    private static final Color PURPLE_ACCENT = new Color(130, 50, 210);
+    private static final Color PURPLE_ACCENT2 = new Color(90, 30, 150);
+    private static final Color PINK_ACCENT = new Color(230, 70, 150);
+    private static final Color CARD_BORDER = new Color(55, 25, 95);
+    private static final Color TEXT_PRIMARY = new Color(245, 240, 255);
+    private static final Color TEXT_SECONDARY = new Color(185, 168, 212);
+    private static final Color TEXT_MUTED = new Color(130, 108, 162);
+    private static final Color GREEN_UP = new Color(0, 200, 120);
+    private static final Color RED_DOWN = new Color(240, 80, 90);
 
     private final BancoService service = new BancoService();
 
     private JFrame frame;
     private CardLayout cardLayout;
     private JPanel root;
+    private JPanel glassPane;
+    private JLabel toastLabel;
+    private Timer toastTimer;
+    private Point mouseOffset;
 
     private Cliente cliente;
     private ContaPoupanca contaPoupanca;
@@ -66,325 +89,665 @@ public class BancoUI {
     private JPanel cardCorrentePanel;
     private JTextArea historicoArea;
     private JTextField valorField;
-    private JLabel toastLabel;
     private BigDecimal saldoExibido = BigDecimal.ZERO;
+    private JLabel avatarLabel;
+    private JPanel contaIndicator;
 
     private boolean houveSelecaoPoupanca;
     private boolean houveSelecaoCorrente;
 
+    private Font fontInter;
+    private Font fontInterBold;
+    private Font fontInterSemi;
+
     public void show() {
         configurarLookAndFeel();
+        carregarFontes();
 
-        frame = new JFrame("Sistema Banco | Painel Digital");
+        frame = new JFrame("Banco Aurora");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        frame.setMinimumSize(new Dimension(980, 640));
+        frame.setMinimumSize(new Dimension(1080, 740));
+        frame.setUndecorated(true);
 
         cardLayout = new CardLayout();
         root = new JPanel(cardLayout);
-        root.add(criarTelaLogin(), "login");
-        root.add(criarTelaPainel(), "painel");
+
+        JPanel login = criarTelaLogin();
+        JPanel painel = criarTelaPainel();
+        root.add(login, "login");
+        root.add(painel, "painel");
+
+        glassPane = new JPanel(new GridBagLayout());
+        glassPane.setOpaque(false);
+        glassPane.setVisible(false);
+
+        toastLabel = new JLabel("", SwingConstants.CENTER);
+        toastLabel.setOpaque(true);
+        toastLabel.setVisible(false);
+        toastLabel.setFont(fontInterSemi.deriveFont(13f));
+        toastLabel.setBorder(BorderFactory.createEmptyBorder(14, 32, 14, 32));
+
+        RoundedPanel toastBg = new RoundedPanel(16, new Color(0, 0, 0, 0), new Color(0, 0, 0, 0));
+        toastBg.setLayout(new BorderLayout());
+        toastBg.add(toastLabel, BorderLayout.CENTER);
+
+        glassPane.add(toastBg);
+        frame.setGlassPane(glassPane);
 
         frame.setContentPane(root);
         frame.setLocationRelativeTo(null);
         frame.setVisible(true);
 
         cardLayout.show(root, "login");
+        ((ParticlePanel) login).iniciarAnimacao();
+    }
+
+    private void carregarFontes() {
+        try {
+            InputStream is = getClass().getResourceAsStream("/fonts/Inter-Regular.ttf");
+            if (is != null) fontInter = Font.createFont(Font.TRUETYPE_FONT, is);
+            is = getClass().getResourceAsStream("/fonts/Inter-Bold.ttf");
+            if (is != null) fontInterBold = Font.createFont(Font.TRUETYPE_FONT, is);
+            is = getClass().getResourceAsStream("/fonts/Inter-SemiBold.ttf");
+            if (is != null) fontInterSemi = Font.createFont(Font.TRUETYPE_FONT, is);
+        } catch (FontFormatException | IOException ignored) {}
+        if (fontInter == null) fontInter = new Font("SansSerif", Font.PLAIN, 14);
+        if (fontInterBold == null) fontInterBold = new Font("SansSerif", Font.BOLD, 14);
+        if (fontInterSemi == null) fontInterSemi = new Font("SansSerif", Font.BOLD, 14);
     }
 
     private JPanel criarTelaLogin() {
-        GradientPanel panel = new GradientPanel(BG_TOP, BG_BOTTOM);
+        ParticlePanel panel = new ParticlePanel(PURPLE_DEEP, new Color(18, 7, 36));
         panel.setLayout(new GridBagLayout());
 
-        JPanel card = new JPanel(new GridBagLayout());
-        card.setPreferredSize(new Dimension(430, 380));
-        card.setBackground(new Color(255, 255, 255, 230));
+        JPanel wrapper = new JPanel(new GridBagLayout());
+        wrapper.setOpaque(false);
+
+        RoundedPanel card = new RoundedPanel(24, new Color(20, 8, 40), new Color(30, 14, 55));
+        card.setLayout(new GridBagLayout());
         card.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(new Color(255, 255, 255, 180), 1),
-                BorderFactory.createEmptyBorder(24, 24, 20, 24)));
+                BorderFactory.createLineBorder(new Color(80, 35, 150, 80), 1),
+                BorderFactory.createEmptyBorder(44, 40, 36, 40)));
 
         GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(8, 8, 8, 8);
+        gbc.insets = new Insets(5, 5, 5, 5);
         gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.gridx = 0;
         gbc.gridy = 0;
 
-        JLabel titulo = new JLabel("Banco Aurora");
-        titulo.setFont(new Font("Georgia", Font.BOLD, 30));
-        titulo.setForeground(new Color(20, 50, 72));
-        titulo.setHorizontalAlignment(SwingConstants.CENTER);
+        JLabel logo = new JLabel("✦", SwingConstants.CENTER);
+        logo.setFont(fontInterBold.deriveFont(44f));
+        logo.setForeground(PINK_ACCENT);
+        card.add(logo, gbc);
+
+        gbc.gridy++;
+        JLabel titulo = new JLabel("Aurora", SwingConstants.CENTER);
+        titulo.setFont(fontInterBold.deriveFont(34f));
+        titulo.setForeground(TEXT_PRIMARY);
         card.add(titulo, gbc);
 
         gbc.gridy++;
-        JLabel subtitulo = new JLabel("Acesso seguro e intuitivo");
-        subtitulo.setHorizontalAlignment(SwingConstants.CENTER);
-        subtitulo.setForeground(new Color(68, 90, 108));
-        subtitulo.setFont(new Font("SansSerif", Font.PLAIN, 14));
-        card.add(subtitulo, gbc);
+        JLabel sub = new JLabel("Experiencia financeira do futuro", SwingConstants.CENTER);
+        sub.setForeground(TEXT_SECONDARY);
+        sub.setFont(fontInter.deriveFont(13f));
+        card.add(sub, gbc);
 
+        gbc.insets = new Insets(16, 5, 5, 5);
         gbc.gridy++;
-        JTextField nomeField = new JTextField();
-        nomeField.setBorder(BorderFactory.createTitledBorder("Nome"));
+        JTextField nomeField = criarCampo("Seu nome completo");
         card.add(nomeField, gbc);
 
+        gbc.insets = new Insets(6, 5, 5, 5);
         gbc.gridy++;
-        JTextField cpfField = new JTextField();
-        cpfField.setBorder(BorderFactory.createTitledBorder("CPF"));
+        JTextField cpfField = criarCampo("CPF (apenas numeros)");
         card.add(cpfField, gbc);
 
         gbc.gridy++;
-        JPasswordField senhaField = new JPasswordField();
-        senhaField.setBorder(BorderFactory.createTitledBorder("Senha"));
+        JPasswordField senhaField = criarCampoSenha("Crie uma senha");
         card.add(senhaField, gbc);
 
+        gbc.insets = new Insets(18, 5, 5, 5);
         gbc.gridy++;
-        JButton entrarBtn = criarBotao("Entrar");
+        JButton entrarBtn = criarBotaoGradiente("Entrar");
         card.add(entrarBtn, gbc);
 
+        gbc.insets = new Insets(6, 5, 5, 5);
         gbc.gridy++;
-        JLabel dica = new JLabel("Novo? Basta informar seus dados para criar conta");
-        dica.setHorizontalAlignment(SwingConstants.CENTER);
-        dica.setForeground(new Color(88, 106, 121));
+        JLabel dica = new JLabel("Novo? Cadastre-se automaticamente ao entrar", SwingConstants.CENTER);
+        dica.setForeground(TEXT_MUTED);
+        dica.setFont(fontInter.deriveFont(11f));
         card.add(dica, gbc);
 
         entrarBtn.addActionListener(e -> {
             String nome = nomeField.getText().trim();
             String cpf = cpfField.getText().trim();
             String senha = new String(senhaField.getPassword()).trim();
-
-            if (nome.isEmpty()) {
-                mostrarErro("Informe o nome para continuar.");
+            if (nome.isEmpty() || senha.isEmpty()) {
+                mostrarErro("Preencha todos os campos");
                 return;
             }
-            if (senha.isEmpty()) {
-                mostrarErro("Informe a senha para continuar.");
-                return;
-            }
-
             try {
                 iniciarSessao(nome, cpf, senha);
                 cardLayout.show(root, "painel");
-                animarToast("Login realizado com sucesso.", new Color(28, 132, 82));
+                animarToast("Bem-vindo(a), " + nome.split(" ")[0] + "!", GREEN_UP);
             } catch (IllegalArgumentException ex) {
                 mostrarErro(ex.getMessage());
             }
         });
 
-        iniciarAnimacaoTitulo(titulo);
-        panel.add(card);
+        wrapper.add(card);
+        panel.add(wrapper);
         return panel;
     }
 
     private JPanel criarTelaPainel() {
-        GradientPanel painel = new GradientPanel(new Color(237, 244, 249), new Color(222, 236, 245));
-        painel.setLayout(new BorderLayout(18, 18));
-        painel.setBorder(BorderFactory.createEmptyBorder(16, 16, 16, 16));
+        RoundedPanel painel = new RoundedPanel(0, new Color(12, 4, 26), new Color(20, 8, 40));
+        painel.setLayout(new BorderLayout(0, 0));
 
-        JPanel topo = new JPanel(new BorderLayout(10, 10));
-        topo.setOpaque(false);
+        painel.add(criarBarraSuperior(), BorderLayout.NORTH);
 
-        JPanel tituloBox = new JPanel(new GridLayout(3, 1));
-        tituloBox.setOpaque(false);
+        JPanel corpo = new JPanel(new BorderLayout(0, 12));
+        corpo.setOpaque(false);
+        corpo.setBorder(BorderFactory.createEmptyBorder(4, 28, 20, 28));
 
+        corpo.add(criarCabecalhoPainel(), BorderLayout.NORTH);
+
+        JPanel centro = new JPanel(new GridLayout(1, 2, 18, 0));
+        centro.setOpaque(false);
+        centro.add(criarPainelContas());
+        centro.add(criarPainelOperacoes());
+        corpo.add(centro, BorderLayout.CENTER);
+
+        painel.add(corpo, BorderLayout.CENTER);
+        return painel;
+    }
+
+    private JPanel criarBarraSuperior() {
+        JPanel barra = new JPanel(new BorderLayout());
+        barra.setPreferredSize(new Dimension(0, 40));
+        barra.setBackground(new Color(8, 3, 18));
+
+        JLabel tituloJanela = new JLabel("  ✦ Aurora");
+        tituloJanela.setFont(fontInterSemi.deriveFont(12f));
+        tituloJanela.setForeground(TEXT_MUTED);
+        barra.add(tituloJanela, BorderLayout.WEST);
+
+        JPanel botoes = new JPanel(new FlowLayout(FlowLayout.RIGHT, 2, 0));
+        botoes.setOpaque(false);
+
+        JButton minBtn = criarBotaoJanela("─", e -> frame.setState(java.awt.Frame.ICONIFIED));
+        JButton closeBtn = criarBotaoJanela("✕", e -> {
+            service.salvarDados();
+            System.exit(0);
+        });
+
+        botoes.add(minBtn);
+        botoes.add(closeBtn);
+        barra.add(botoes, BorderLayout.EAST);
+
+        MouseAdapter drag = new MouseAdapter() {
+            public void mousePressed(MouseEvent e) { mouseOffset = e.getPoint(); }
+            public void mouseDragged(MouseEvent e) {
+                if (mouseOffset != null) {
+                    Point p = frame.getLocation();
+                    frame.setLocation(p.x + e.getX() - mouseOffset.x, p.y + e.getY() - mouseOffset.y);
+                }
+            }
+        };
+        barra.addMouseListener(drag);
+        barra.addMouseMotionListener(drag);
+
+        return barra;
+    }
+
+    private JButton criarBotaoJanela(String texto, java.awt.event.ActionListener acao) {
+        JButton btn = new JButton(texto) {
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                if (getModel().isRollover()) g2.setColor(new Color(255, 255, 255, 30));
+                else g2.setColor(new Color(0, 0, 0, 0));
+                g2.fillRect(0, 0, getWidth(), getHeight());
+                g2.setColor(TEXT_MUTED);
+                g2.setFont(fontInter.deriveFont(14f));
+                FontMetrics fm = g2.getFontMetrics();
+                int x = (getWidth() - fm.stringWidth(getText())) / 2;
+                int y = (getHeight() + fm.getAscent() / 2) / 2 - 1;
+                g2.drawString(getText(), x, y);
+                g2.dispose();
+            }
+        };
+        btn.setPreferredSize(new Dimension(46, 40));
+        btn.setBorder(BorderFactory.createEmptyBorder());
+        btn.setContentAreaFilled(false);
+        btn.setFocusPainted(false);
+        btn.addActionListener(acao);
+        btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        return btn;
+    }
+
+    private JPanel criarCabecalhoPainel() {
+        JPanel header = new JPanel(new BorderLayout(16, 0));
+        header.setOpaque(false);
+
+        avatarLabel = new JLabel("A", SwingConstants.CENTER);
+        avatarLabel.setFont(fontInterBold.deriveFont(20f));
+        avatarLabel.setForeground(TEXT_PRIMARY);
+        avatarLabel.setPreferredSize(new Dimension(48, 48));
+
+        JPanel avatarWrap = new JPanel(new BorderLayout()) {
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                GradientPaint gp = new GradientPaint(0, 0, PURPLE_ACCENT, getWidth(), getHeight(), PINK_ACCENT);
+                g2.setPaint(gp);
+                g2.fillOval(0, 0, getWidth(), getHeight());
+                g2.dispose();
+            }
+        };
+        avatarWrap.setPreferredSize(new Dimension(48, 48));
+        avatarWrap.add(avatarLabel, BorderLayout.CENTER);
+
+        JPanel textoBox = new JPanel(new GridLayout(2, 1));
+        textoBox.setOpaque(false);
+        textoBox.setBorder(BorderFactory.createEmptyBorder(2, 0, 0, 0));
         tituloContaLabel = new JLabel("Visao Geral");
-        tituloContaLabel.setFont(new Font("Georgia", Font.BOLD, 28));
-        tituloContaLabel.setForeground(new Color(22, 52, 74));
-
-        badgeContaAtiva = new JLabel("Conta ativa: nenhuma");
-        badgeContaAtiva.setFont(new Font("SansSerif", Font.BOLD, 13));
-        badgeContaAtiva.setForeground(new Color(57, 93, 117));
+        tituloContaLabel.setFont(fontInterBold.deriveFont(24f));
+        tituloContaLabel.setForeground(TEXT_PRIMARY);
 
         cpfLabel = new JLabel("Titular: -");
-        cpfLabel.setForeground(new Color(74, 96, 112));
+        cpfLabel.setForeground(TEXT_SECONDARY);
+        cpfLabel.setFont(fontInter.deriveFont(13f));
+        textoBox.add(tituloContaLabel);
+        textoBox.add(cpfLabel);
 
-        tituloBox.add(tituloContaLabel);
-        tituloBox.add(badgeContaAtiva);
-        tituloBox.add(cpfLabel);
+        JPanel esquerda = new JPanel(new BorderLayout(12, 0));
+        esquerda.setOpaque(false);
+        esquerda.add(avatarWrap, BorderLayout.WEST);
+        esquerda.add(textoBox, BorderLayout.CENTER);
 
-        JPanel saldoBox = criarCard();
-        saldoBox.setLayout(new GridLayout(2, 1));
-        JLabel saldoTitulo = new JLabel("Saldo da conta selecionada");
-        saldoTitulo.setForeground(new Color(62, 90, 108));
+        RoundedPanel saldoCard = new RoundedPanel(16, new Color(25, 10, 50), new Color(18, 7, 36));
+        saldoCard.setLayout(new BorderLayout(0, 2));
+        saldoCard.setBorder(BorderFactory.createEmptyBorder(10, 22, 10, 22));
+
+        JPanel saldoLinha = new JPanel(new BorderLayout(10, 0));
+        saldoLinha.setOpaque(false);
+        JLabel saldoTitulo = new JLabel("Saldo disponivel");
+        saldoTitulo.setForeground(TEXT_SECONDARY);
+        saldoTitulo.setFont(fontInter.deriveFont(12f));
         saldoPrincipalLabel = new JLabel(FormatadorMoeda.formatar(BigDecimal.ZERO));
-        saldoPrincipalLabel.setFont(new Font("Georgia", Font.BOLD, 28));
-        saldoPrincipalLabel.setForeground(new Color(16, 70, 97));
-        saldoBox.add(saldoTitulo);
-        saldoBox.add(saldoPrincipalLabel);
+        saldoPrincipalLabel.setFont(fontInterBold.deriveFont(28f));
+        saldoPrincipalLabel.setForeground(TEXT_PRIMARY);
+        saldoLinha.add(saldoTitulo, BorderLayout.WEST);
+        saldoLinha.add(saldoPrincipalLabel, BorderLayout.EAST);
 
-        JPanel topoDireito = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
-        topoDireito.setOpaque(false);
-        JButton logoutBtn = criarBotao("Logout");
+        badgeContaAtiva = new JLabel("nenhuma conta selecionada");
+        badgeContaAtiva.setForeground(TEXT_MUTED);
+        badgeContaAtiva.setFont(fontInter.deriveFont(11f));
+
+        saldoCard.add(saldoLinha, BorderLayout.CENTER);
+        saldoCard.add(badgeContaAtiva, BorderLayout.SOUTH);
+
+        JPanel direita = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 4));
+        direita.setOpaque(false);
+        JButton logoutBtn = criarBotaoSimples("Sair");
         logoutBtn.addActionListener(e -> {
             service.salvarDados();
             limparSessao();
             cardLayout.show(root, "login");
-            animarToast("Sessao encerrada.", new Color(138, 89, 29));
+            animarToast("Sessao encerrada", RED_DOWN);
         });
-        topoDireito.add(logoutBtn);
+        direita.add(logoutBtn);
 
-        topo.add(tituloBox, BorderLayout.WEST);
-        topo.add(saldoBox, BorderLayout.CENTER);
-        topo.add(topoDireito, BorderLayout.EAST);
+        header.add(esquerda, BorderLayout.WEST);
+        header.add(saldoCard, BorderLayout.CENTER);
+        header.add(direita, BorderLayout.EAST);
 
-        JPanel centro = new JPanel(new GridLayout(1, 2, 14, 14));
-        centro.setOpaque(false);
+        return header;
+    }
 
-        JPanel contasPanel = criarCard();
-        contasPanel.setLayout(new BorderLayout(10, 10));
-        JLabel contasTitulo = new JLabel("Seletor de contas");
-        contasTitulo.setFont(new Font("Georgia", Font.BOLD, 20));
-        contasTitulo.setForeground(new Color(26, 59, 84));
-        contasPanel.add(contasTitulo, BorderLayout.NORTH);
+    private JPanel criarPainelContas() {
+        JPanel panel = new JPanel(new BorderLayout(0, 14));
+        panel.setOpaque(false);
 
-        JPanel cardsContas = new JPanel(new GridLayout(2, 1, 10, 10));
-        cardsContas.setOpaque(false);
+        JLabel titulo = new JLabel("Suas contas");
+        titulo.setFont(fontInterSemi.deriveFont(17f));
+        titulo.setForeground(TEXT_PRIMARY);
+        panel.add(titulo, BorderLayout.NORTH);
 
-        cardPoupancaPanel = criarCardConta("Conta Poupanca", "Rendimento automatico", () -> selecionarConta("poupanca"));
+        JPanel cards = new JPanel(new GridLayout(2, 1, 0, 14));
+        cards.setOpaque(false);
+
+        cardPoupancaPanel = criarCardConta("Poupanca", "Rende automaticamente", "★", new Color(230, 70, 150), "poupanca");
         saldoPoupancaLabel = (JLabel) cardPoupancaPanel.getClientProperty("saldoLabel");
 
-        cardCorrentePanel = criarCardConta("Conta Corrente", "Movimentacao diaria", () -> selecionarConta("corrente"));
+        cardCorrentePanel = criarCardConta("Corrente", "Dia a dia", "◆", new Color(130, 50, 210), "corrente");
         saldoCorrenteLabel = (JLabel) cardCorrentePanel.getClientProperty("saldoLabel");
 
-        cardsContas.add(cardPoupancaPanel);
-        cardsContas.add(cardCorrentePanel);
+        cards.add(cardPoupancaPanel);
+        cards.add(cardCorrentePanel);
+        panel.add(cards, BorderLayout.CENTER);
 
-        contasPanel.add(cardsContas, BorderLayout.CENTER);
+        contaIndicator = new JPanel(new FlowLayout(FlowLayout.CENTER, 6, 0));
+        contaIndicator.setOpaque(false);
+        JLabel dica = new JLabel("Clique em uma conta para ativa-la");
+        dica.setFont(fontInter.deriveFont(11f));
+        dica.setForeground(TEXT_MUTED);
+        contaIndicator.add(dica);
+        panel.add(contaIndicator, BorderLayout.SOUTH);
 
-        JPanel operacoesPanel = criarCard();
-        operacoesPanel.setLayout(new BorderLayout(10, 12));
-        JLabel opTitulo = new JLabel("Operacoes");
-        opTitulo.setFont(new Font("Georgia", Font.BOLD, 20));
-        opTitulo.setForeground(new Color(26, 59, 84));
-        JLabel opSubtitulo = new JLabel("Escolha uma conta ativa e depois selecione a acao");
-        opSubtitulo.setForeground(new Color(90, 110, 125));
+        return panel;
+    }
 
-        JPanel opHeader = new JPanel(new GridLayout(2, 1));
-        opHeader.setOpaque(false);
-        opHeader.add(opTitulo);
-        opHeader.add(opSubtitulo);
-        operacoesPanel.add(opHeader, BorderLayout.NORTH);
+    private JPanel criarPainelOperacoes() {
+        JPanel panel = new JPanel(new BorderLayout(0, 14));
+        panel.setOpaque(false);
 
-        JPanel form = new JPanel(new BorderLayout(0, 10));
-        form.setOpaque(false);
+        JLabel titulo = new JLabel("Operacoes");
+        titulo.setFont(fontInterSemi.deriveFont(17f));
+        titulo.setForeground(TEXT_PRIMARY);
+        panel.add(titulo, BorderLayout.NORTH);
 
-        valorField = new JTextField();
-        valorField.setBorder(BorderFactory.createTitledBorder("Valor (deposito, saque e transferencia)"));
+        RoundedPanel formCard = new RoundedPanel(18, new Color(22, 9, 42), new Color(16, 6, 32));
+        formCard.setLayout(new BorderLayout(0, 14));
+        formCard.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(CARD_BORDER, 1),
+                BorderFactory.createEmptyBorder(20, 20, 20, 20)));
 
-        JButton saqueBtn = criarBotao("Sacar");
-        JButton depositoBtn = criarBotao("Depositar");
-        JButton transfBtn = criarBotao("Transferir entre contas");
-        JButton saldoBtn = criarBotao("Consultar saldo");
+        JPanel opsHeader = new JPanel(new BorderLayout(0, 4));
+        opsHeader.setOpaque(false);
+        JLabel opsSub = new JLabel("Selecione uma conta e realize suas acoes");
+        opsSub.setForeground(TEXT_SECONDARY);
+        opsSub.setFont(fontInter.deriveFont(12f));
+        opsHeader.add(opsSub, BorderLayout.CENTER);
 
-        saqueBtn.addActionListener(e -> executarOperacao("saque"));
-        depositoBtn.addActionListener(e -> executarOperacao("deposito"));
-        transfBtn.addActionListener(e -> executarOperacao("transferencia"));
-        saldoBtn.addActionListener(e -> executarOperacao("saldo"));
+        valorField = criarCampo("Valor (ex: 250.00)");
+        valorField.setFont(fontInter.deriveFont(14f));
 
-        JPanel botoes = new JPanel(new GridLayout(2, 2, 8, 8));
-        botoes.setOpaque(false);
-        botoes.add(depositoBtn);
-        botoes.add(saqueBtn);
-        botoes.add(transfBtn);
-        botoes.add(saldoBtn);
+        JPanel gradeBotoes = new JPanel(new GridLayout(2, 2, 10, 10));
+        gradeBotoes.setOpaque(false);
 
-        JLabel dicaOperacoes = new JLabel("Transferencia envia da conta ativa para a outra conta.");
-        dicaOperacoes.setForeground(new Color(84, 105, 121));
+        JButton depBtn = criarBotaoGradiente("Depositar");
+        JButton saqBtn = criarBotaoSimples("Sacar");
+        JButton trfBtn = criarBotaoSimples("Transferir");
+        JButton salBtn = criarBotaoSimples("Saldo");
 
-        form.add(valorField, BorderLayout.NORTH);
-        form.add(botoes, BorderLayout.CENTER);
-        form.add(dicaOperacoes, BorderLayout.SOUTH);
+        depBtn.addActionListener(e -> executarOperacao("deposito"));
+        saqBtn.addActionListener(e -> executarOperacao("saque"));
+        trfBtn.addActionListener(e -> executarOperacao("transferencia"));
+        salBtn.addActionListener(e -> executarOperacao("saldo"));
+
+        gradeBotoes.add(depBtn);
+        gradeBotoes.add(saqBtn);
+        gradeBotoes.add(trfBtn);
+        gradeBotoes.add(salBtn);
+
+        JLabel dicaOp = new JLabel("Transferencia: da conta ativa para a outra");
+        dicaOp.setForeground(TEXT_MUTED);
+        dicaOp.setFont(fontInter.deriveFont(11f));
+
+        formCard.add(opsHeader, BorderLayout.NORTH);
+        formCard.add(valorField, BorderLayout.CENTER);
+        formCard.add(gradeBotoes, BorderLayout.SOUTH);
 
         historicoArea = new JTextArea();
         historicoArea.setEditable(false);
         historicoArea.setLineWrap(true);
         historicoArea.setWrapStyleWord(true);
-        historicoArea.setFont(new Font("SansSerif", Font.PLAIN, 13));
-        historicoArea.setBackground(new Color(252, 254, 255));
-        historicoArea.setBorder(BorderFactory.createTitledBorder("Historico da sessao"));
+        historicoArea.setFont(fontInter.deriveFont(12f));
+        historicoArea.setForeground(TEXT_SECONDARY);
+        historicoArea.setBackground(new Color(16, 6, 32));
+        historicoArea.setBorder(BorderFactory.createEmptyBorder(10, 14, 10, 14));
+        historicoArea.setSelectionColor(new Color(130, 50, 210, 80));
 
         JScrollPane scroll = new JScrollPane(historicoArea);
-        scroll.setBorder(BorderFactory.createEmptyBorder());
+        scroll.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(CARD_BORDER, 1),
+                BorderFactory.createEmptyBorder()));
+        scroll.getVerticalScrollBar().setBackground(PURPLE_DEEP);
+        scroll.getVerticalScrollBar().setPreferredSize(new Dimension(5, 0));
+        scroll.getVerticalScrollBar().setUI(new BasicScrollBarUI() {
+            protected void configureScrollBarColors() {
+                this.thumbColor = PURPLE_ACCENT2;
+                this.trackColor = PURPLE_DEEP;
+            }
+            protected JButton createDecreaseButton(int o) { return botaoScrollVazio(); }
+            protected JButton createIncreaseButton(int o) { return botaoScrollVazio(); }
+            protected void paintThumb(Graphics g, JComponent c, java.awt.Rectangle r) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(thumbColor);
+                g2.fillRoundRect(r.x + 2, r.y, r.width - 4, r.height, 5, 5);
+                g2.dispose();
+            }
+        });
 
-        operacoesPanel.add(form, BorderLayout.NORTH);
-        operacoesPanel.add(scroll, BorderLayout.CENTER);
+        JPanel bottom = new JPanel(new BorderLayout(0, 10));
+        bottom.setOpaque(false);
+        bottom.add(formCard, BorderLayout.NORTH);
+        bottom.add(scroll, BorderLayout.CENTER);
 
-        centro.add(contasPanel);
-        centro.add(operacoesPanel);
-
-        toastLabel = new JLabel(" ", SwingConstants.CENTER);
-        toastLabel.setOpaque(true);
-        toastLabel.setVisible(false);
-        toastLabel.setFont(new Font("SansSerif", Font.BOLD, 13));
-        toastLabel.setBorder(BorderFactory.createEmptyBorder(8, 12, 8, 12));
-
-        painel.add(topo, BorderLayout.NORTH);
-        painel.add(centro, BorderLayout.CENTER);
-        painel.add(toastLabel, BorderLayout.SOUTH);
-
-        return painel;
-    }
-
-    private JPanel criarCardConta(String titulo, String descricao, Runnable acaoSelecionar) {
-        JPanel card = criarCard();
-        card.setLayout(new BorderLayout(8, 8));
-
-        JLabel tituloLabel = new JLabel(titulo);
-        tituloLabel.setFont(new Font("Georgia", Font.BOLD, 20));
-        tituloLabel.setForeground(new Color(23, 57, 83));
-
-        JLabel descricaoLabel = new JLabel(descricao);
-        descricaoLabel.setForeground(new Color(76, 98, 114));
-
-        JLabel saldoLabel = new JLabel(FormatadorMoeda.formatar(BigDecimal.ZERO));
-        saldoLabel.setFont(new Font("SansSerif", Font.BOLD, 21));
-        saldoLabel.setForeground(new Color(17, 88, 118));
-
-        JButton selecionarBtn = criarBotao("Selecionar");
-        selecionarBtn.addActionListener(e -> acaoSelecionar.run());
-        selecionarBtn.setPreferredSize(new Dimension(140, 36));
-
-        JPanel text = new JPanel(new GridLayout(3, 1));
-        text.setOpaque(false);
-        text.add(tituloLabel);
-        text.add(descricaoLabel);
-        text.add(saldoLabel);
-
-        card.add(text, BorderLayout.CENTER);
-        card.add(selecionarBtn, BorderLayout.SOUTH);
-        card.putClientProperty("saldoLabel", saldoLabel);
-        return card;
-    }
-
-    private JPanel criarCard() {
-        JPanel panel = new JPanel();
-        panel.setBackground(CARD_BG);
-        panel.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(new Color(217, 227, 236), 1),
-                BorderFactory.createEmptyBorder(14, 14, 14, 14)));
+        panel.add(bottom, BorderLayout.CENTER);
         return panel;
     }
 
-    private JButton criarBotao(String texto) {
-        JButton botao = new JButton(texto);
-        botao.setFocusPainted(false);
-        botao.setOpaque(true);
-        botao.setContentAreaFilled(true);
-        botao.setBorderPainted(false);
-        botao.setForeground(Color.WHITE);
-        botao.setBackground(PRIMARY);
-        botao.setBorder(BorderFactory.createEmptyBorder(10, 14, 10, 14));
-        botao.setFont(new Font("SansSerif", Font.BOLD, 13));
-        botao.addMouseListener(new java.awt.event.MouseAdapter() {
-            @Override
-            public void mouseEntered(java.awt.event.MouseEvent e) {
-                botao.setBackground(PRIMARY.brighter());
-            }
+    private JButton botaoScrollVazio() {
+        JButton b = new JButton();
+        b.setPreferredSize(new Dimension(0, 0));
+        b.setMinimumSize(new Dimension(0, 0));
+        b.setMaximumSize(new Dimension(0, 0));
+        return b;
+    }
 
-            @Override
-            public void mouseExited(java.awt.event.MouseEvent e) {
-                botao.setBackground(PRIMARY);
+    private JPanel criarCardConta(String nome, String desc, String icone, Color corIcone, String tipo) {
+        RoundedPanel card = new RoundedPanel(18, new Color(26, 11, 50), new Color(20, 8, 40));
+        card.setLayout(new BorderLayout(0, 0));
+        card.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(CARD_BORDER, 1),
+                BorderFactory.createEmptyBorder(18, 20, 18, 20)));
+        card.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+
+        JPanel topo = new JPanel(new BorderLayout(12, 0));
+        topo.setOpaque(false);
+
+        JLabel iconeLb = new JLabel(icone);
+        iconeLb.setFont(fontInter.deriveFont(26f));
+        iconeLb.setForeground(corIcone);
+
+        JPanel textos = new JPanel(new GridLayout(2, 1));
+        textos.setOpaque(false);
+        JLabel nomeLb = new JLabel(nome);
+        nomeLb.setFont(fontInterSemi.deriveFont(16f));
+        nomeLb.setForeground(TEXT_PRIMARY);
+        JLabel descLb = new JLabel(desc);
+        descLb.setForeground(TEXT_MUTED);
+        descLb.setFont(fontInter.deriveFont(12f));
+        textos.add(nomeLb);
+        textos.add(descLb);
+
+        topo.add(iconeLb, BorderLayout.WEST);
+        topo.add(textos, BorderLayout.CENTER);
+
+        JLabel saldoLb = new JLabel(FormatadorMoeda.formatar(BigDecimal.ZERO));
+        saldoLb.setFont(fontInterBold.deriveFont(20f));
+        saldoLb.setForeground(TEXT_PRIMARY);
+        saldoLb.setHorizontalAlignment(SwingConstants.RIGHT);
+
+        JPanel statusDot = new JPanel() {
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(new Color(60, 30, 110));
+                g2.fillOval(2, 2, 8, 8);
+                g2.dispose();
+            }
+        };
+        statusDot.setPreferredSize(new Dimension(12, 12));
+        statusDot.setOpaque(false);
+
+        JPanel rodape = new JPanel(new BorderLayout(10, 0));
+        rodape.setOpaque(false);
+        rodape.add(statusDot, BorderLayout.WEST);
+        rodape.add(saldoLb, BorderLayout.CENTER);
+
+        card.add(topo, BorderLayout.NORTH);
+        card.add(rodape, BorderLayout.SOUTH);
+
+        card.putClientProperty("tipo", tipo);
+        card.putClientProperty("saldoLabel", saldoLb);
+        card.putClientProperty("statusDot", statusDot);
+
+        card.addMouseListener(new MouseAdapter() {
+            public void mouseClicked(MouseEvent e) { selecionarConta(tipo); }
+            public void mouseEntered(MouseEvent e) {
+                card.setBorder(BorderFactory.createCompoundBorder(
+                        BorderFactory.createLineBorder(new Color(100, 45, 180), 1),
+                        BorderFactory.createEmptyBorder(18, 20, 18, 20)));
+            }
+            public void mouseExited(MouseEvent e) {
+                boolean ativa = (tipo.equals("poupanca") && contaSelecionada == contaPoupanca) ||
+                                (tipo.equals("corrente") && contaSelecionada == contaCorrente);
+                card.setBorder(BorderFactory.createCompoundBorder(
+                        BorderFactory.createLineBorder(ativa ? PURPLE_ACCENT : CARD_BORDER, ativa ? 2 : 1),
+                        BorderFactory.createEmptyBorder(18, 20, 18, 20)));
             }
         });
-        return botao;
+
+        return card;
+    }
+
+    private JTextField criarCampo(String placeholder) {
+        JTextField f = new JTextField() {
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(new Color(45, 20, 80, 100));
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 12, 12);
+                super.paintComponent(g);
+                g2.dispose();
+            }
+        };
+        f.setOpaque(false);
+        f.setForeground(TEXT_PRIMARY);
+        f.setCaretColor(PINK_ACCENT);
+        f.setFont(fontInter.deriveFont(13f));
+        f.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(70, 30, 140, 80), 1),
+                BorderFactory.createEmptyBorder(11, 14, 11, 14)));
+        f.setBackground(new Color(0, 0, 0, 0));
+        f.setSelectionColor(new Color(130, 50, 210, 100));
+        f.putClientProperty("placeholder", placeholder);
+        f.addFocusListener(new FocusAdapter() {
+            public void focusGained(FocusEvent e) {
+                f.setBorder(BorderFactory.createCompoundBorder(
+                        BorderFactory.createLineBorder(PURPLE_ACCENT, 2),
+                        BorderFactory.createEmptyBorder(10, 13, 10, 13)));
+            }
+            public void focusLost(FocusEvent e) {
+                f.setBorder(BorderFactory.createCompoundBorder(
+                        BorderFactory.createLineBorder(new Color(70, 30, 140, 80), 1),
+                        BorderFactory.createEmptyBorder(11, 14, 11, 14)));
+            }
+        });
+        return f;
+    }
+
+    private JPasswordField criarCampoSenha(String ph) {
+        JPasswordField f = new JPasswordField() {
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(new Color(45, 20, 80, 100));
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 12, 12);
+                super.paintComponent(g);
+                g2.dispose();
+            }
+        };
+        f.setOpaque(false);
+        f.setForeground(TEXT_PRIMARY);
+        f.setCaretColor(PINK_ACCENT);
+        f.setFont(fontInter.deriveFont(13f));
+        f.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(70, 30, 140, 80), 1),
+                BorderFactory.createEmptyBorder(11, 14, 11, 14)));
+        f.setEchoChar('●');
+        f.setSelectionColor(new Color(130, 50, 210, 100));
+        f.addFocusListener(new FocusAdapter() {
+            public void focusGained(FocusEvent e) {
+                f.setBorder(BorderFactory.createCompoundBorder(
+                        BorderFactory.createLineBorder(PURPLE_ACCENT, 2),
+                        BorderFactory.createEmptyBorder(10, 13, 10, 13)));
+            }
+            public void focusLost(FocusEvent e) {
+                f.setBorder(BorderFactory.createCompoundBorder(
+                        BorderFactory.createLineBorder(new Color(70, 30, 140, 80), 1),
+                        BorderFactory.createEmptyBorder(11, 14, 11, 14)));
+            }
+        });
+        return f;
+    }
+
+    private JButton criarBotaoGradiente(String texto) {
+        JButton btn = new JButton(texto) {
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                if (getModel().isPressed()) {
+                    g2.setPaint(new GradientPaint(0, 0, PURPLE_ACCENT2, getWidth(), getHeight(), new Color(180, 50, 120)));
+                } else if (getModel().isRollover()) {
+                    g2.setPaint(new GradientPaint(0, 0, PINK_ACCENT, getWidth(), getHeight(), PURPLE_ACCENT));
+                } else {
+                    g2.setPaint(new GradientPaint(0, 0, PURPLE_ACCENT, getWidth(), getHeight(), PINK_ACCENT));
+                }
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 14, 14);
+                g2.setColor(Color.WHITE);
+                g2.setFont(fontInterSemi.deriveFont(13f));
+                FontMetrics fm = g2.getFontMetrics();
+                int x = (getWidth() - fm.stringWidth(getText())) / 2;
+                int y = (getHeight() + fm.getAscent() / 2) / 2;
+                g2.drawString(getText(), x, y);
+                g2.dispose();
+            }
+        };
+        btn.setPreferredSize(new Dimension(0, 46));
+        btn.setBorder(BorderFactory.createEmptyBorder());
+        btn.setContentAreaFilled(false);
+        btn.setFocusPainted(false);
+        btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        return btn;
+    }
+
+    private JButton criarBotaoSimples(String texto) {
+        JButton btn = new JButton(texto) {
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                if (getModel().isPressed()) {
+                    g2.setColor(new Color(35, 15, 65, 220));
+                } else if (getModel().isRollover()) {
+                    g2.setColor(new Color(50, 22, 95, 200));
+                } else {
+                    g2.setColor(new Color(40, 16, 78, 160));
+                }
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 14, 14);
+                g2.setColor(new Color(PURPLE_ACCENT.getRed(), PURPLE_ACCENT.getGreen(), PURPLE_ACCENT.getBlue(), 80));
+                g2.setStroke(new BasicStroke(1f));
+                g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 14, 14);
+                g2.setColor(TEXT_PRIMARY);
+                g2.setFont(fontInterSemi.deriveFont(12f));
+                FontMetrics fm = g2.getFontMetrics();
+                int x = (getWidth() - fm.stringWidth(getText())) / 2;
+                int y = (getHeight() + fm.getAscent() / 2) / 2;
+                g2.drawString(getText(), x, y);
+                g2.dispose();
+            }
+        };
+        btn.setPreferredSize(new Dimension(0, 44));
+        btn.setBorder(BorderFactory.createEmptyBorder());
+        btn.setContentAreaFilled(false);
+        btn.setFocusPainted(false);
+        btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        return btn;
     }
 
     private void iniciarSessao(String nome, String cpf, String senha) {
@@ -395,11 +758,12 @@ public class BancoUI {
         houveSelecaoPoupanca = false;
         houveSelecaoCorrente = false;
 
-        tituloContaLabel.setText("Bem-vindo, " + cliente.getNome());
-        cpfLabel.setText("Titular: " + cliente.getNome() + " | CPF: " + cliente.getCpfFormatado());
+        String inicial = cliente.getNome().trim().isEmpty() ? "?" : String.valueOf(cliente.getNome().charAt(0)).toUpperCase();
+        avatarLabel.setText(inicial);
+        tituloContaLabel.setText("Bem-vindo, " + cliente.getNome().split(" ")[0]);
+        cpfLabel.setText(cliente.getNome() + "  |  " + cliente.getCpfFormatado());
         historicoArea.setText("");
-        registrarHistorico("Sessao iniciada para " + cliente.getNome() + ".");
-
+        registrarHistorico("Sessao iniciada para " + cliente.getNome());
         atualizarSaldos(true);
         atualizarDestaqueConta();
     }
@@ -407,69 +771,66 @@ public class BancoUI {
     private void selecionarConta(String tipo) {
         if ("poupanca".equals(tipo)) {
             contaSelecionada = contaPoupanca;
-            badgeContaAtiva.setText("Conta ativa: Poupanca (" + contaPoupanca.getNumeroConta() + ")");
+            badgeContaAtiva.setText("Poupanca ativa");
             if (!houveSelecaoPoupanca) {
                 contaPoupanca.calcularJuros();
                 contaPoupanca.calcularTaxa();
                 houveSelecaoPoupanca = true;
-                registrarHistorico("Poupanca selecionada. Juros iniciais aplicados.");
+                registrarHistorico("Poupanca selecionada. Juros aplicados.");
             } else {
-                registrarHistorico("Poupanca selecionada.");
+                registrarHistorico("Poupanca selecionada");
             }
         } else {
             contaSelecionada = contaCorrente;
-            badgeContaAtiva.setText("Conta ativa: Corrente (" + contaCorrente.getNumeroConta() + ")");
+            badgeContaAtiva.setText("Corrente ativa");
             if (!houveSelecaoCorrente) {
                 contaCorrente.calcularJuros();
                 contaCorrente.calcularTaxa();
                 houveSelecaoCorrente = true;
-                registrarHistorico("Corrente selecionada. Taxa inicial aplicada quando possivel.");
+                registrarHistorico("Corrente selecionada. Taxa aplicada.");
             } else {
-                registrarHistorico("Corrente selecionada.");
+                registrarHistorico("Corrente selecionada");
             }
         }
         atualizarSaldos(false);
         atualizarDestaqueConta();
-        animarToast("Conta alterada com sucesso.", new Color(19, 101, 136));
+        animarToast("Conta " + tipo + " ativada", PURPLE_ACCENT);
     }
 
     private void executarOperacao(String tipo) {
         if (contaSelecionada == null) {
-            mostrarErro("Selecione uma conta antes de operar.");
+            mostrarErro("Selecione uma conta primeiro");
             return;
         }
-
         try {
             switch (tipo) {
                 case "deposito" -> {
-                    BigDecimal valor = lerValor();
-                    contaSelecionada.depositar(valor);
-                    registrarHistorico("Deposito de " + FormatadorMoeda.formatar(valor) + " realizado.");
-                    animarToast("Deposito realizado.", new Color(28, 132, 82));
+                    BigDecimal v = lerValor();
+                    contaSelecionada.depositar(v);
+                    registrarHistorico("Deposito: +" + FormatadorMoeda.formatar(v));
+                    animarToast("Deposito realizado!", GREEN_UP);
                     service.salvarDados();
                 }
                 case "saque" -> {
-                    BigDecimal valor = lerValor();
-                    contaSelecionada.sacar(valor);
-                    registrarHistorico("Saque solicitado de " + FormatadorMoeda.formatar(valor) + ".");
-                    animarToast("Saque realizado.", new Color(178, 95, 31));
+                    BigDecimal v = lerValor();
+                    contaSelecionada.sacar(v);
+                    registrarHistorico("Saque: -" + FormatadorMoeda.formatar(v));
+                    animarToast("Saque realizado!", RED_DOWN);
                     service.salvarDados();
                 }
                 case "transferencia" -> {
-                    BigDecimal valor = lerValor();
-                    ContaBancaria destino = contaSelecionada == contaPoupanca ? contaCorrente : contaPoupanca;
-                    contaSelecionada.transferir(valor, destino);
-                    registrarHistorico("Transferencia de " + FormatadorMoeda.formatar(valor) + " para " + nomeConta(destino) + ".");
-                    animarToast("Transferencia concluida.", new Color(32, 115, 129));
+                    BigDecimal v = lerValor();
+                    ContaBancaria dest = contaSelecionada == contaPoupanca ? contaCorrente : contaPoupanca;
+                    contaSelecionada.transferir(v, dest);
+                    registrarHistorico("Transferencia: " + FormatadorMoeda.formatar(v) + " p/ " + nomeConta(dest));
+                    animarToast("Transferencia concluida!", PURPLE_ACCENT);
                     service.salvarDados();
                 }
                 case "saldo" -> {
-                    registrarHistorico("Saldo atual de " + nomeConta(contaSelecionada) + ": " + FormatadorMoeda.formatar(contaSelecionada.getSaldo()) + ".");
-                    animarToast("Saldo atualizado.", new Color(19, 101, 136));
+                    registrarHistorico("Saldo " + nomeConta(contaSelecionada) + ": " + FormatadorMoeda.formatar(contaSelecionada.getSaldo()));
+                    animarToast("Saldo: " + FormatadorMoeda.formatar(contaSelecionada.getSaldo()), PURPLE_ACCENT);
                 }
-                default -> {}
             }
-
             atualizarSaldos(false);
             valorField.setText("");
         } catch (IllegalArgumentException ex) {
@@ -478,32 +839,23 @@ public class BancoUI {
     }
 
     private BigDecimal lerValor() {
-        String texto = valorField.getText().trim().replace(',', '.');
-        if (texto.isEmpty()) {
-            throw new IllegalArgumentException("Informe um valor para a operacao.");
-        }
-
+        String t = valorField.getText().trim().replace(',', '.');
+        if (t.isEmpty()) throw new IllegalArgumentException("Informe um valor");
         try {
-            BigDecimal valor = new BigDecimal(texto);
-            if (valor.compareTo(BigDecimal.ZERO) <= 0) {
-                throw new IllegalArgumentException("Valor deve ser maior que zero.");
-            }
-            return valor;
-        } catch (NumberFormatException ex) {
-            throw new IllegalArgumentException("Valor invalido. Exemplo: 100.50");
+            BigDecimal v = new BigDecimal(t);
+            if (v.compareTo(BigDecimal.ZERO) <= 0) throw new IllegalArgumentException("Valor deve ser maior que zero");
+            return v;
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("Valor invalido. Ex: 100.50");
         }
     }
 
-    private void atualizarSaldos(boolean semAnimacao) {
-        if (saldoPoupancaLabel == null) {
-            return;
-        }
-
+    private void atualizarSaldos(boolean semAnim) {
+        if (saldoPoupancaLabel == null) return;
         saldoPoupancaLabel.setText(FormatadorMoeda.formatar(contaPoupanca.getSaldo()));
         saldoCorrenteLabel.setText(FormatadorMoeda.formatar(contaCorrente.getSaldo()));
-
         BigDecimal alvo = contaSelecionada != null ? contaSelecionada.getSaldo() : BigDecimal.ZERO;
-        if (semAnimacao) {
+        if (semAnim) {
             saldoPrincipalLabel.setText(FormatadorMoeda.formatar(alvo));
             saldoExibido = alvo;
         } else {
@@ -512,39 +864,37 @@ public class BancoUI {
     }
 
     private void animarSaldo(BigDecimal alvo) {
-        final double inicio = saldoExibido.doubleValue();
-        final double fim = alvo.doubleValue();
+        double inicio = saldoExibido.doubleValue();
+        double fim = alvo.doubleValue();
         if (Math.abs(inicio - fim) < 0.01) {
             saldoPrincipalLabel.setText(FormatadorMoeda.formatar(alvo));
             saldoExibido = alvo;
             return;
         }
-        final int passos = 24;
-        final int[] indice = {0};
-
-        Timer timer = new Timer(18, null);
-        timer.addActionListener(e -> {
-            indice[0]++;
-            double t = indice[0] / (double) passos;
-            double eased = 1 - Math.pow(1 - t, 3);
-            double valorAnimado = inicio + (fim - inicio) * eased;
-            saldoPrincipalLabel.setText(FormatadorMoeda.formatar(BigDecimal.valueOf(valorAnimado).setScale(2, RoundingMode.HALF_EVEN)));
-
-            if (indice[0] >= passos) {
+        int passos = 20;
+        int[] idx = {0};
+        Timer t = new Timer(16, null);
+        t.addActionListener(e -> {
+            idx[0]++;
+            double p = idx[0] / (double) passos;
+            double eased = 1 - (float) Math.pow(1 - p, 4);
+            double v = inicio + (fim - inicio) * eased;
+            saldoPrincipalLabel.setText(FormatadorMoeda.formatar(BigDecimal.valueOf(v).setScale(2, RoundingMode.HALF_EVEN)));
+            if (idx[0] >= passos) {
                 saldoPrincipalLabel.setText(FormatadorMoeda.formatar(alvo));
                 saldoExibido = alvo;
-                timer.stop();
+                t.stop();
             }
         });
-        timer.start();
+        t.start();
     }
 
-    private String nomeConta(ContaBancaria conta) {
-        return conta == contaPoupanca ? "Conta Poupanca" : "Conta Corrente";
+    private String nomeConta(ContaBancaria c) {
+        return c == contaPoupanca ? "Poupanca" : "Corrente";
     }
 
-    private void registrarHistorico(String mensagem) {
-        historicoArea.append("- " + mensagem + "\n");
+    private void registrarHistorico(String msg) {
+        historicoArea.append("  " + msg + "\n");
         historicoArea.setCaretPosition(historicoArea.getDocument().getLength());
     }
 
@@ -553,98 +903,148 @@ public class BancoUI {
         contaPoupanca = null;
         contaCorrente = null;
         contaSelecionada = null;
-
-        if (historicoArea != null) {
-            historicoArea.setText("");
-        }
+        if (historicoArea != null) historicoArea.setText("");
         if (saldoPrincipalLabel != null) {
             saldoPrincipalLabel.setText(FormatadorMoeda.formatar(BigDecimal.ZERO));
         }
         saldoExibido = BigDecimal.ZERO;
-        if (badgeContaAtiva != null) {
-            badgeContaAtiva.setText("Conta ativa: nenhuma");
-        }
+        if (badgeContaAtiva != null) badgeContaAtiva.setText("nenhuma conta selecionada");
+        if (avatarLabel != null) avatarLabel.setText("A");
         atualizarDestaqueConta();
     }
 
     private void atualizarDestaqueConta() {
-        if (cardPoupancaPanel == null || cardCorrentePanel == null) {
-            return;
-        }
-
-        Color normal = new Color(217, 227, 236);
-        Color ativo = new Color(8, 104, 129);
-
-        cardPoupancaPanel.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(contaSelecionada == contaPoupanca ? ativo : normal, contaSelecionada == contaPoupanca ? 2 : 1),
-                BorderFactory.createEmptyBorder(14, 14, 14, 14)));
-
-        cardCorrentePanel.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(contaSelecionada == contaCorrente ? ativo : normal, contaSelecionada == contaCorrente ? 2 : 1),
-                BorderFactory.createEmptyBorder(14, 14, 14, 14)));
+        if (cardPoupancaPanel == null || cardCorrentePanel == null) return;
+        aplicarDestaque(cardPoupancaPanel, "poupanca");
+        aplicarDestaque(cardCorrentePanel, "corrente");
+        atualizarStatusDot(cardPoupancaPanel, contaSelecionada == contaPoupanca);
+        atualizarStatusDot(cardCorrentePanel, contaSelecionada == contaCorrente);
     }
 
-    private void mostrarErro(String mensagem) {
-        JOptionPane.showMessageDialog(frame, mensagem, "Atencao", JOptionPane.WARNING_MESSAGE);
+    private void aplicarDestaque(JPanel card, String tipo) {
+        boolean ativa = (tipo.equals("poupanca") && contaSelecionada == contaPoupanca) ||
+                        (tipo.equals("corrente") && contaSelecionada == contaCorrente);
+        card.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(ativa ? PURPLE_ACCENT : CARD_BORDER, ativa ? 2 : 1),
+                BorderFactory.createEmptyBorder(18, 20, 18, 20)));
+    }
+
+    private void atualizarStatusDot(JPanel card, boolean ativa) {
+        JPanel dot = (JPanel) card.getClientProperty("statusDot");
+        if (dot != null) {
+            Graphics2D g2 = (Graphics2D) dot.getGraphics();
+            if (g2 != null) {
+                dot.repaint();
+            }
+            dot.putClientProperty("ativo", ativa);
+        }
+    }
+
+    private void mostrarErro(String msg) {
+        animarToast(msg, RED_DOWN);
     }
 
     private void animarToast(String mensagem, Color cor) {
-        if (toastLabel == null) {
-            return;
-        }
+        if (toastTimer != null && toastTimer.isRunning()) toastTimer.stop();
 
-        toastLabel.setText(mensagem);
-        toastLabel.setForeground(Color.WHITE);
-        toastLabel.setBackground(cor);
+        toastLabel.setText("  " + mensagem + "  ");
+        toastLabel.setForeground(TEXT_PRIMARY);
+        toastLabel.setBackground(new Color(cor.getRed(), cor.getGreen(), cor.getBlue(), 230));
+
         toastLabel.setVisible(true);
+        glassPane.setVisible(true);
 
-        Timer timer = new Timer(1800, e -> toastLabel.setVisible(false));
-        timer.setRepeats(false);
-        timer.start();
-    }
-
-    private void iniciarAnimacaoTitulo(JLabel titulo) {
-        final int[] direcao = {1};
-        final int[] brilho = {180};
-
-        Timer timer = new Timer(35, e -> {
-            brilho[0] += 2 * direcao[0];
-            if (brilho[0] > 235 || brilho[0] < 150) {
-                direcao[0] = -direcao[0];
-            }
-            titulo.setForeground(new Color(20, 50, 72, Math.max(120, Math.min(brilho[0], 245))));
+        toastTimer = new Timer(2400, null);
+        toastTimer.setRepeats(false);
+        toastTimer.addActionListener(e -> {
+            toastLabel.setVisible(false);
+            glassPane.setVisible(false);
         });
-        timer.start();
+        toastTimer.start();
     }
 
     private void configurarLookAndFeel() {
         try {
-            UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+            UIManager.setLookAndFeel(UIManager.getCrossPlatformLookAndFeelClassName());
         } catch (Exception ignored) {}
     }
 
-    private static class GradientPanel extends JPanel {
-        private final Color inicio;
-        private final Color fim;
+    private static class RoundedPanel extends JPanel {
+        private int radius;
+        private final Color c1;
+        private final Color c2;
 
-        private GradientPanel(Color inicio, Color fim) {
-            this.inicio = inicio;
-            this.fim = fim;
+        RoundedPanel(int r, Color c1, Color c2) {
+            this.radius = r;
+            this.c1 = c1;
+            this.c2 = c2;
+            setOpaque(false);
         }
 
-        @Override
+        protected void paintComponent(Graphics g) {
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g2.setPaint(new GradientPaint(0, 0, c1, getWidth(), getHeight(), c2));
+            g2.fillRoundRect(0, 0, getWidth(), getHeight(), radius, radius);
+            g2.setColor(new Color(255, 255, 255, 8));
+            g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, radius, radius);
+            g2.dispose();
+        }
+    }
+
+    private static class ParticlePanel extends JPanel {
+        private final Color bg1;
+        private final Color bg2;
+        private final float[][] particles;
+        private final Random rand = new Random();
+        private Timer animTimer;
+
+        ParticlePanel(Color bg1, Color bg2) {
+            this.bg1 = bg1;
+            this.bg2 = bg2;
+            particles = new float[35][4];
+            for (int i = 0; i < particles.length; i++) {
+                particles[i] = new float[]{
+                    rand.nextFloat() * 1200, rand.nextFloat() * 800,
+                    0.5f + rand.nextFloat() * 1.5f,
+                    0.2f + rand.nextFloat() * 0.5f
+                };
+            }
+            setOpaque(false);
+        }
+
+        void iniciarAnimacao() {
+            if (animTimer != null && animTimer.isRunning()) animTimer.stop();
+            animTimer = new Timer(40, e -> {
+                for (float[] p : particles) {
+                    p[1] -= p[2] * 0.15f;
+                    p[0] += Math.sin(p[1] * 0.01f) * 0.2f;
+                    if (p[1] < -20) { p[1] = getHeight() + 20; p[0] = rand.nextFloat() * getWidth(); }
+                }
+                repaint();
+            });
+            animTimer.start();
+        }
+
         protected void paintComponent(Graphics g) {
             super.paintComponent(g);
             Graphics2D g2 = (Graphics2D) g.create();
             g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-            GradientPaint gp = new GradientPaint(0, 0, inicio, getWidth(), getHeight(), fim);
-            g2.setPaint(gp);
+            g2.setPaint(new GradientPaint(0, 0, bg1, getWidth(), getHeight(), bg2));
             g2.fillRect(0, 0, getWidth(), getHeight());
 
-            g2.setColor(new Color(255, 255, 255, 34));
-            g2.setStroke(new BasicStroke(2f));
-            g2.drawOval(-80, -40, 380, 380);
-            g2.drawOval(getWidth() - 280, getHeight() - 220, 340, 340);
+            for (float[] p : particles) {
+                float alpha = p[3] * 0.3f;
+                g2.setColor(new Color(180, 130, 230, (int) (alpha * 255)));
+                int size = (int) (p[2] * 2.5f);
+                g2.fillOval((int) p[0], (int) p[1], size, size);
+            }
+
+            g2.setColor(new Color(130, 50, 210, 12));
+            g2.fillOval(getWidth() / 2 - 250, -100, 500, 500);
+            g2.setColor(new Color(230, 70, 150, 8));
+            g2.fillOval(getWidth() / 2 + 100, getHeight() - 300, 350, 350);
+
             g2.dispose();
         }
     }

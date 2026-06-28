@@ -11,3 +11,13 @@ out/
 
 # sistema
 .DS_Store
+
+# IDE
+.idea/
+*.iml
+
+# build
+target/
+
+# dados locais
+dados_bancarios.json
